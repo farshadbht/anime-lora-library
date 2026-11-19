@@ -1,0 +1,23 @@
+# Private configuration and API keys
+config/settings.json
+
+# Downloaded models and generated library
+downloads/
+logs/
+
+# Python environments and cache
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Build and installer output
+build/
+dist/
+installer_output/
+*.spec
+
+# Windows and editor files
+Thumbs.db
+.DS_Store
+.vscode/
