@@ -60,11 +60,7 @@ Install dependencies:
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Install Playwright browser components if needed:
 
-```powershell
-.\.venv\Scripts\python.exe -m playwright install
-```
 
 ## Configuration
 
