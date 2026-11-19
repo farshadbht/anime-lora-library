@@ -1,0 +1,218 @@
+﻿import json
+import sys
+from pathlib import Path
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import urlparse
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC = PROJECT_ROOT / "src"
+sys.path.insert(0, str(SRC))
+
+from api import CivitaiAPI
+from organizer import create_model_archive, safe_name
+from downloader import download_version_assets
+from offline_site import generate_offline_site
+from generate_library import generate
+
+
+DOWNLOADS = PROJECT_ROOT / "downloads"
+SETTINGS_PATH = PROJECT_ROOT / "config" / "settings.json"
+LIBRARY_PATH = DOWNLOADS / "library.json"
+
+
+def extract_character_name(model_name):
+    """Extract the leading character name from a Civitai model title."""
+    name = str(model_name or "Unknown Character").strip()
+    name = name.lstrip("#").strip()
+
+    separators = [" (", " - ", " | "]
+    positions = [name.find(separator) for separator in separators]
+    positions = [position for position in positions if position > 0]
+
+    if positions:
+        name = name[:min(positions)]
+
+    return name.strip(" #-\\t") or "Unknown Character"
+
+
+
+def add_character(url, anime_name):
+    if not url or not anime_name:
+        raise ValueError("Both the Civitai URL and anime title are required.")
+
+    settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    library = json.loads(LIBRARY_PATH.read_text(encoding="utf-8"))
+
+    api = CivitaiAPI(settings.get("api_key"))
+
+    print("\n" + "=" * 55)
+    print("ADDING NEW CHARACTER")
+    print("=" * 55)
+
+    result = api.get_model_from_url(url)
+    model = result["model"]
+    versions = result["versions"]
+
+    model_id = model.get("id")
+    model_name = model.get("name", "Unknown Model")
+
+    # Prevent adding a model already present in the library.
+    for anime in library.get("anime", []):
+        for character in anime.get("characters", []):
+            existing_folder = DOWNLOADS / character["folder"]
+            metadata_path = existing_folder / "Metadata.json"
+
+            if metadata_path.exists():
+                metadata = json.loads(
+                    metadata_path.read_text(encoding="utf-8")
+                )
+                if metadata.get("id") == model_id:
+                    raise ValueError(
+                        f"{model_name} is already in the library "
+                        f"under {anime['name']}."
+                    )
+
+    if not versions:
+        raise ValueError("No model versions were returned by Civitai.")
+
+    download_directory = Path(settings["download_directory"])
+    if not download_directory.is_absolute():
+        download_directory = PROJECT_ROOT / download_directory
+
+    root = create_model_archive(
+        model,
+        versions,
+        download_directory
+    )
+
+    all_results = []
+
+    for version in versions:
+        folder_name = (
+            f"{safe_name(version.get('name', 'Version'))}"
+            f" [{version.get('id')}]"
+        )
+
+        version_folder = root / "Versions" / folder_name
+
+        results = download_version_assets(
+            api,
+            version,
+            version_folder
+        )
+        all_results.append(results)
+
+    # Generate the character's offline page, including its back button.
+    character_page = generate_offline_site(root)
+
+    # Find or create the anime section.
+    anime_entry = next(
+        (
+            item for item in library.get("anime", [])
+            if item["name"].strip().casefold() == anime_name.strip().casefold()
+        ),
+        None
+    )
+
+    if anime_entry is None:
+        anime_entry = {
+            "name": anime_name.strip(),
+            "characters": []
+        }
+        library.setdefault("anime", []).append(anime_entry)
+
+    relative_folder = root.relative_to(DOWNLOADS).as_posix()
+
+    character_name = extract_character_name(model_name)
+
+    anime_entry["characters"].append({
+        "name": character_name,
+        "folder": relative_folder
+    })
+
+    LIBRARY_PATH.write_text(
+        json.dumps(library, indent=4, ensure_ascii=False),
+        encoding="utf-8"
+    )
+
+    # Regenerate the main library page.
+    generate()
+
+    total_files = sum(len(item["files_downloaded"]) for item in all_results)
+    total_images = sum(len(item["images_downloaded"]) for item in all_results)
+    total_errors = sum(len(item["errors"]) for item in all_results)
+
+    return {
+        "success": True,
+        "model": model_name,
+        "anime": anime_entry["name"],
+        "versions": len(versions),
+        "files": total_files,
+        "images": total_images,
+        "errors": total_errors,
+        "character_page": str(character_page),
+        "library_page": str(DOWNLOADS / "index.html")
+    }
+
+
+class LibraryHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
+
+    def do_POST(self):
+        if urlparse(self.path).path != "/add-character":
+            self.send_error(404)
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 10000:
+                raise ValueError("Request is too large.")
+
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+
+            result = add_character(
+                data.get("url", "").strip(),
+                data.get("anime", "").strip()
+            )
+
+            self.send_json(200, result)
+
+        except Exception as error:
+            print(f"\nERROR: {error}")
+            self.send_json(400, {
+                "success": False,
+                "error": str(error)
+            })
+
+    def send_json(self, status, data):
+        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+
+if __name__ == "__main__":
+    address = ("127.0.0.1", 8765)
+
+    server = ThreadingHTTPServer(address, LibraryHandler)
+
+    print("\n======================================")
+    print("       ANIME LIBRARY MANAGER")
+    print("======================================")
+    print("Open this address in your browser:")
+    print("http://127.0.0.1:8765/downloads/index.html")
+    print("\nKeep this PowerShell window open while using it.")
+    print("Press Ctrl+C to stop the server.")
+    print("======================================\n")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping library manager...")
+    finally:
+        server.server_close()
