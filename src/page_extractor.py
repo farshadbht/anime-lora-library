@@ -572,6 +572,22 @@ def extract_model_page(model_url, model_data=None, versions=None):
             None
         )
     selector["displayed_version_id"] = displayed_version_id
+
+    for visible in selector.get("visible_versions", []):
+        if visible.get("version_id") is None:
+            label = _clean_text(visible.get("label")).casefold()
+            matched = next(
+                (
+                    item for item in (versions or [])
+                    if _clean_text(item.get("name")).casefold() == label
+                ),
+                None
+            )
+            if matched:
+                visible["version_id"] = matched.get("id")
+        if visible.get("version_id") is not None:
+            visible["selected"] = visible["version_id"] == displayed_version_id
+
     result["version_selector"] = selector
 
     return result
