@@ -1421,13 +1421,15 @@ function renderCivitaiResults() {{
         const copyButton=document.createElement("button");copyButton.type="button";copyButton.className="civitai-result-action";copyButton.textContent="Copy URL";
         copyButton.addEventListener("click",async()=>{{
             try {{
+                let copied=false;
                 if(navigator.clipboard&&navigator.clipboard.writeText) {{
-                    await navigator.clipboard.writeText(model.url);
-                }} else {{
-                    const temporary=document.createElement("textarea");temporary.value=model.url;temporary.style.position="fixed";temporary.style.opacity="0";document.body.appendChild(temporary);temporary.select();
-                    const copied=document.execCommand("copy");temporary.remove();
-                    if(!copied) throw new Error("Clipboard access is unavailable.");
+                    try {{await navigator.clipboard.writeText(model.url);copied=true}} catch(error) {{}}
                 }}
+                if(!copied) {{
+                    const temporary=document.createElement("textarea");temporary.value=model.url;temporary.style.position="fixed";temporary.style.opacity="0";document.body.appendChild(temporary);temporary.select();
+                    copied=document.execCommand("copy");temporary.remove();
+                }}
+                if(!copied) throw new Error("Clipboard access is unavailable.");
                 copyButton.textContent="Copied!";
             }} catch(error) {{
                 copyButton.textContent="Copy failed";
