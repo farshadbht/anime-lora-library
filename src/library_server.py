@@ -238,6 +238,8 @@ def add_character(url, anime_name):
 
     total_files = sum(len(item["files_downloaded"]) for item in all_results)
     total_images = sum(len(item["images_downloaded"]) for item in all_results)
+    total_files_present = sum(len(item.get("files_already_present", [])) for item in all_results)
+    total_images_present = sum(len(item.get("images_already_present", [])) for item in all_results)
     total_errors = sum(len(item["errors"]) for item in all_results)
 
     return {
@@ -249,6 +251,8 @@ def add_character(url, anime_name):
         "all_model_versions_included": True,
         "files": total_files,
         "images": total_images,
+        "files_already_present": total_files_present,
+        "images_already_present": total_images_present,
         "errors": total_errors,
         "files_skipped": sum(item["files_skipped"] for item in all_results),
         "images_skipped": sum(item["images_skipped"] for item in all_results),
