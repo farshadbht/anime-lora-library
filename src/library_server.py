@@ -265,6 +265,36 @@ def add_character(url, anime_name):
 
 
 
+def _civitai_preview_url(image):
+    """Return a browser-ready Civitai CDN URL for a website-search image."""
+    if not isinstance(image, dict):
+        return None
+
+    value = image.get("url")
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    value = value.strip()
+    if value.startswith(("https://", "http://")):
+        return value
+
+    # Civitai's website-search index can return only the asset UUID instead
+    # of the complete CDN URL. The imagecache endpoint accepts this UUID
+    # with a requested preview width.
+    import re
+    if re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        value,
+        re.IGNORECASE
+    ):
+        return (
+            "https://imagecache.civitai.com/"
+            f"xG1nkqKTMzGDvpLrqFT7WA/{value}/width=450"
+        )
+
+    return None
+
+
 def search_civitai_models(
     query, cursor=None, model_type="LORA", filters=None
 ):
@@ -328,9 +358,9 @@ def search_civitai_models(
         username = user.get("username") or "Unknown"
         preview = next(
             (
-                image.get("url")
+                preview_url
                 for image in images
-                if isinstance(image, dict) and image.get("url")
+                if (preview_url := _civitai_preview_url(image))
             ),
             None
         )
