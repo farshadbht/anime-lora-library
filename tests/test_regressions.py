@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import requests
 from bs4 import BeautifulSoup
@@ -116,6 +116,79 @@ class CivitaiAPITests(unittest.TestCase):
             api.get_model_from_url(
                 "https://civitai.com/models/100/fixture?modelVersionId=12"
             )
+
+    def test_website_search_uses_civitai_index_and_never_sends_personal_api_key(self):
+        api = CivitaiAPI(api_key="do-not-send-this-key")
+        response = Mock()
+        response.json.return_value = {
+            "hits": [{"id": 123, "name": "Fixture"}],
+            "estimatedTotalHits": 1
+        }
+
+        with patch("src.api.requests.Session") as session_factory:
+            search_session = session_factory.return_value
+            search_session.post.return_value = response
+
+            result = api.search_site_models(
+                "epsilon",
+                offset=100,
+                model_type="LORA",
+                base_models=["Pony", "SDXL"],
+                supports_generation=True,
+                tag='anime "style"',
+                username="fixture_creator"
+            )
+
+        self.assertEqual(result["hits"][0]["id"], 123)
+        url, = session_factory.return_value.post.call_args.args
+        body = session_factory.return_value.post.call_args.kwargs["json"]
+        self.assertEqual(
+            url,
+            "https://civitai.com/api/search/indexes/models_v9/search"
+        )
+        self.assertEqual(body["q"], "epsilon")
+        self.assertEqual(body["offset"], 100)
+        self.assertEqual(body["limit"], 100)
+        self.assertNotIn("sort", body)
+        self.assertEqual(
+            body["filter"],
+            [
+                'type = "LORA"',
+                'versions.baseModel IN ["Pony", "SDXL"]',
+                "canGenerate = true",
+                'tags.name = "anime \\"style\\""',
+                'user.username = "fixture_creator"'
+            ]
+        )
+        self.assertNotIn("Authorization", search_session.headers)
+        self.assertEqual(
+            search_session.headers["Origin"],
+            "https://civitai.com"
+        )
+        search_session.close.assert_called_once()
+
+    def test_website_search_uses_mature_domain_only_when_configured(self):
+        api = CivitaiAPI(mature_content=True)
+        response = Mock()
+        response.json.return_value = {"hits": []}
+
+        with patch("src.api.requests.Session") as session_factory:
+            session_factory.return_value.post.return_value = response
+            api.search_site_models("epsilon")
+
+        url = session_factory.return_value.post.call_args.args[0]
+        self.assertTrue(url.startswith("https://civitai.red/"))
+        self.assertNotIn(
+            "Authorization",
+            session_factory.return_value.headers
+        )
+
+    def test_website_search_rejects_invalid_offsets(self):
+        api = CivitaiAPI()
+        with self.assertRaisesRegex(ValueError, "cursor"):
+            api.search_site_models("epsilon", offset=-1)
+        with self.assertRaisesRegex(ValueError, "cursor"):
+            api.search_site_models("epsilon", offset="not-an-offset")
 
     def test_search_preserves_native_relevance_and_passes_supported_filters(self):
         api = CivitaiAPI()
