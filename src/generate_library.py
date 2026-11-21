@@ -818,6 +818,8 @@ main {{
 .online-search-advanced-fields {{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:12px;align-items:center;padding:10px 0 2px}}
 .online-search-advanced-fields input[type="text"] {{min-width:0;padding:8px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:11px}}
 .online-search-advanced-fields label {{display:flex;align-items:center;gap:6px;white-space:nowrap}}
+.online-search-content-preference {{margin-top:10px;padding:9px 10px;background:#20202a;border:1px solid #3a3a48;border-radius:5px;font-size:11px}}
+.online-search-content-preference label {{display:flex;align-items:center;gap:7px;color:#ddd}}
 @media(max-width:650px) {{.online-search-advanced-fields {{grid-template-columns:1fr}}}}
 #civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
 #civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
@@ -1221,12 +1223,14 @@ footer {{
             </select>
             <button type="submit" id="civitai-search-button">Search Civitai</button>
         </form>
+        <div class="online-search-content-preference">
+            <label><input type="checkbox" id="civitai-include-nsfw"> I confirm I am 18 or older and want to view mature content</label>
+            <div id="mature-content-status" class="civitai-result-extra">Mature content is off by default. Enabling this setting switches Civitai requests to civitai.red.</div>
+        </div>
         <details class="online-search-advanced">
             <summary>Advanced Civitai filters</summary>
             <div class="online-search-advanced-fields">
                 <input type="text" id="civitai-base-models" placeholder="Base model(s), comma-separated (e.g. Illustrious, Pony, SDXL 1.0)" aria-label="Base model filter">
-                <label><input type="checkbox" id="civitai-include-nsfw"> I am 18 or older and enable mature content</label>
-                <div id="mature-content-status" class="civitai-result-extra">Mature content is off by default. Enabling this setting switches Civitai requests to civitai.red.</div>
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
             </div>
         </details>
