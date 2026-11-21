@@ -151,6 +151,9 @@ class CivitaiAPITests(unittest.TestCase):
         self.assertEqual(body["offset"], 100)
         self.assertEqual(body["limit"], 100)
         self.assertNotIn("sort", body)
+        # Keep Civitai's complete visible hit shape so nested preview image URLs
+        # are not accidentally stripped by an attributes-to-retrieve whitelist.
+        self.assertNotIn("attributesToRetrieve", body)
         self.assertEqual(
             body["filter"],
             [
