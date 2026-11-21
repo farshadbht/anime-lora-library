@@ -823,8 +823,8 @@ main {{
 @media(max-width:650px) {{.online-search-advanced-fields {{grid-template-columns:1fr}}}}
 #civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
 #civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
-.civitai-result {{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px;background:#1b1b23;border:1px solid #343440;border-radius:5px}}
-.civitai-result img {{width:58px;height:68px;object-fit:cover;border-radius:4px;background:#292934}}
+.civitai-result {{display:grid;grid-template-columns:148px minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px;background:#1b1b23;border:1px solid #343440;border-radius:6px}}
+.civitai-result img {{width:148px;height:170px;object-fit:contain;border-radius:5px;background:#17171d}}
 .civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:12px;text-decoration:none}}
 .civitai-result-name:hover {{text-decoration:underline}}
 .civitai-result-meta {{color:#999;font-size:10px;margin-top:5px}}
@@ -834,7 +834,7 @@ main {{
 .civitai-result-downloads {{color:#ddd;font-size:11px;white-space:nowrap;text-align:right}}
 #load-more-models {{display:none;margin-top:10px}}
 @media(max-width:850px) {{.online-search-controls {{grid-template-columns:1fr 1fr}}}}
-@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:46px minmax(0,1fr)}}.civitai-result img {{width:46px;height:58px}}.civitai-result-downloads {{grid-column:2;text-align:left}}}}
+@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:88px minmax(0,1fr);gap:10px}}.civitai-result img {{width:88px;height:112px}}.civitai-result-downloads {{grid-column:2;text-align:left}}}}
 .library-stats {{
     color: #999;
     font-size: 11px;
