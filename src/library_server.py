@@ -16,7 +16,7 @@ SRC = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from api import CivitaiAPI
-from organizer import create_model_archive, safe_name
+from organizer import create_model_archive, safe_name, save_download_report
 from downloader import download_version_assets
 from offline_site import generate_offline_site
 from generate_library import generate
@@ -175,7 +175,13 @@ def add_character(url, anime_name):
             version_folder,
             download_options=download_options
         )
+        results["version_id"] = version.get("id")
+        results["version_name"] = version.get("name")
         all_results.append(results)
+
+    download_report = save_download_report(
+        root, all_results, download_options
+    )
 
     # Generate the character's offline page, including its back button.
     character_page = generate_offline_site(root)
@@ -228,6 +234,7 @@ def add_character(url, anime_name):
         "files_skipped": sum(item["files_skipped"] for item in all_results),
         "images_skipped": sum(item["images_skipped"] for item in all_results),
         "download_options": download_options,
+        "download_report": str(download_report),
         "character_page": str(character_page),
         "library_page": str(DOWNLOADS / "index.html")
     }
