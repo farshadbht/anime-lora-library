@@ -719,7 +719,9 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
         search_form = source.split('<form class="online-search-controls" id="civitai-search-form">', 1)[1].split("</form>", 1)[0]
         self.assertNotIn('id="civitai-sort-by"', search_form)
         self.assertIn('civitaiSortSelect.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});', source)
-        sort_handler = source.split('civitaiSortSelect.addEventListener("change"', 1)[1].split("\\n", 1)[0]
+        sort_start = source.index('civitaiSortSelect.addEventListener("change"')
+        sort_end = source.index(");", sort_start) + 2
+        sort_handler = source[sort_start:sort_end]
         self.assertNotIn('requestCivitaiModels', sort_handler)
         self.assertIn('else if(sortBy) {{', source)
         self.assertIn('civitaiSearchItems.push(...(result.items||[]).map', source)
