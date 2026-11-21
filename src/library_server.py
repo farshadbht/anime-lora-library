@@ -48,13 +48,39 @@ def initialize_data():
                 "images": True,
                 "model_files": True,
                 "descriptions": True
-            }
+            },
+            "content_preferences": {"mature_content_enabled": False}
         }
         SETTINGS_PATH.write_text(
             json.dumps(default_settings, ensure_ascii=False, indent=2),
             encoding="utf-8"
         )
+    else:
+        current_settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        preferences = current_settings.setdefault("content_preferences", {})
+        preferences.setdefault("mature_content_enabled", False)
+        SETTINGS_PATH.write_text(
+            json.dumps(current_settings, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
 
+
+def mature_content_enabled(settings):
+    preferences = settings.get("content_preferences") or {}
+    return preferences.get("mature_content_enabled") is True
+
+
+def update_content_preference(enabled, age_confirmed=False):
+    if enabled is True and age_confirmed is not True:
+        raise ValueError("You must confirm that you are 18 or older before enabling mature content.")
+    settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    preferences = settings.setdefault("content_preferences", {})
+    preferences["mature_content_enabled"] = enabled is True
+    SETTINGS_PATH.write_text(
+        json.dumps(settings, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+    return {"success": True, "mature_content_enabled": preferences["mature_content_enabled"]}
 
 
 def extract_character_name(model_name):
@@ -88,7 +114,10 @@ def add_character(url, anime_name):
         "descriptions": bool(download_settings.get("descriptions", True))
     }
 
-    api = CivitaiAPI(settings.get("api_key"))
+    api = CivitaiAPI(
+        settings.get("api_key"),
+        mature_content=mature_content_enabled(settings)
+    )
 
     print("\n" + "=" * 55)
     print("ADDING NEW CHARACTER")
@@ -211,14 +240,15 @@ def search_civitai_models(
     """Return Civitai relevance-ranked matches using supported browse filters."""
     filters = filters if isinstance(filters, dict) else {}
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-    api = CivitaiAPI(settings.get("api_key"))
+    mature_enabled = mature_content_enabled(settings)
+    api = CivitaiAPI(settings.get("api_key"), mature_content=mature_enabled)
     payload = api.search_models(
         query=query,
         cursor=cursor,
         limit=100,
         model_type=model_type,
         base_models=filters.get("base_models"),
-        include_nsfw=filters.get("include_nsfw", True) is True,
+        include_nsfw=mature_enabled,
         supports_generation=filters.get("supports_generation") is True
     )
 
@@ -243,7 +273,7 @@ def search_civitai_models(
             "name": model.get("name") or "Unknown model",
             "type": model.get("type") or "Unknown",
             "creator": creator.get("username") or "Unknown",
-            "creatorUrl": f"https://civitai.com/user/{creator.get('username')}" if creator.get("username") else None,
+            "creatorUrl": f"https://{'civitai.red' if mature_enabled else 'civitai.com'}/user/{creator.get('username')}" if creator.get("username") else None,
             "baseModel": latest.get("baseModel") or "Base model unavailable",
             "downloads": int(stats.get("downloadCount") or 0),
             "likes": int(stats.get("thumbsUpCount") or 0),
@@ -254,7 +284,7 @@ def search_civitai_models(
             "rating": stats.get("rating"),
             "ratingCount": int(stats.get("ratingCount") or 0),
             "createdAt": created_at,
-            "url": f"https://civitai.com/models/{model.get('id')}",
+            "url": f"https://{'civitai.red' if mature_enabled else 'civitai.com'}/models/{model.get('id')}",
             "preview": images[0].get("url") if images else None,
             "tags": model.get("tags") or [],
             "updatedAt": model.get("updatedAt")
@@ -265,7 +295,8 @@ def search_civitai_models(
         "success": True,
         "items": items,
         "nextCursor": metadata.get("nextCursor"),
-        "totalItems": metadata.get("totalItems")
+        "totalItems": metadata.get("totalItems"),
+        "matureContentEnabled": mature_enabled
     }
 
 
@@ -526,6 +557,13 @@ class LibraryHandler(SimpleHTTPRequestHandler):
             return False
 
     def do_GET(self):
+        if urlparse(self.path).path == "/app-settings":
+            settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            self.send_json(200, {
+                "success": True,
+                "mature_content_enabled": mature_content_enabled(settings)
+            })
+            return
         if not self._is_allowed_static_path():
             self.send_error(404, "File not found.")
             return
@@ -552,6 +590,7 @@ class LibraryHandler(SimpleHTTPRequestHandler):
         if route not in (
             "/add-character",
             "/search-models",
+            "/content-preference",
             "/remove-character",
             "/restore-character",
             "/delete-character",
@@ -571,6 +610,11 @@ class LibraryHandler(SimpleHTTPRequestHandler):
                 result = add_character(
                     data.get("url", "").strip(),
                     data.get("anime", "").strip()
+                )
+            elif route == "/content-preference":
+                result = update_content_preference(
+                    data.get("enabled") is True,
+                    data.get("age_confirmed") is True
                 )
             elif route == "/search-models":
                 result = search_civitai_models(
