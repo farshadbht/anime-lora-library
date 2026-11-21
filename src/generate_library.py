@@ -806,6 +806,24 @@ main {{
     padding: 18px 4%;
 }}
 
+.online-search-panel {{background:#22222b;border:1px solid #49405c;border-radius:7px;padding:15px;margin-bottom:18px}}
+.online-search-panel h2 {{margin:0 0 7px;font-size:15px;color:#c9a7ff}}
+.online-search-description {{color:#999;font-size:11px;line-height:1.5;margin:0 0 12px}}
+.online-search-controls {{display:grid;grid-template-columns:minmax(180px,1fr) 145px 180px auto;gap:9px}}
+.online-search-controls input,.online-search-controls select {{min-width:0;padding:10px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:12px}}
+.online-search-controls button,#load-more-models {{padding:10px 15px;background:#68449a;border:0;border-radius:5px;color:white;cursor:pointer;font-size:12px;font-weight:bold}}
+.online-search-controls button:disabled,#load-more-models:disabled {{opacity:.5;cursor:wait}}
+#civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
+#civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
+.civitai-result {{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px;background:#1b1b23;border:1px solid #343440;border-radius:5px}}
+.civitai-result img {{width:58px;height:68px;object-fit:cover;border-radius:4px;background:#292934}}
+.civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:12px;text-decoration:none}}
+.civitai-result-name:hover {{text-decoration:underline}}
+.civitai-result-meta {{color:#999;font-size:10px;margin-top:5px}}
+.civitai-result-downloads {{color:#ddd;font-size:11px;white-space:nowrap;text-align:right}}
+#load-more-models {{display:none;margin-top:10px}}
+@media(max-width:850px) {{.online-search-controls {{grid-template-columns:1fr 1fr}}}}
+@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:46px minmax(0,1fr)}}.civitai-result img {{width:46px;height:58px}}.civitai-result-downloads {{grid-column:2;text-align:left}}}}
 .library-stats {{
     color: #999;
     font-size: 11px;
@@ -1168,6 +1186,24 @@ footer {{
         <div id="add-status"></div>
     </section>
 
+    <section class="online-search-panel">
+        <h2>Search Civitai Models</h2>
+        <p class="online-search-description">Civitai finds relevant matches first. This page then ranks those matches by download count. Load more to expand the relevant result set.</p>
+        <form class="online-search-controls" id="civitai-search-form">
+            <input type="search" id="civitai-search-query" placeholder="Search Civitai models..." required>
+            <select id="civitai-model-type" aria-label="Model type">
+                <option value="LORA" selected>LoRA</option><option value="All">All model types</option>
+                <option value="Checkpoint">Checkpoint</option><option value="TextualInversion">Textual Inversion</option><option value="Controlnet">ControlNet</option>
+            </select>
+            <select id="civitai-download-order" aria-label="Download count order">
+                <option value="desc" selected>Most downloaded first</option><option value="asc">Least downloaded first</option>
+            </select>
+            <button type="submit" id="civitai-search-button">Search Civitai</button>
+        </form>
+        <div id="civitai-search-status"></div><div id="civitai-search-results"></div>
+        <button type="button" id="load-more-models">Load more relevant results</button>
+    </section>
+
 <div class="library-stats">
         {len(anime_sections)} anime · {total_characters} characters
     </div>
@@ -1234,6 +1270,66 @@ document.getElementById("add-character-form").addEventListener("submit", async f
         button.textContent = "Add Character & Download";
     }}
 }});
+
+const civitaiSearchForm=document.getElementById("civitai-search-form");
+const civitaiSearchButton=document.getElementById("civitai-search-button");
+const civitaiSearchStatus=document.getElementById("civitai-search-status");
+const civitaiResultsElement=document.getElementById("civitai-search-results");
+const loadMoreModelsButton=document.getElementById("load-more-models");
+const downloadOrderSelect=document.getElementById("civitai-download-order");
+let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA";
+
+function renderCivitaiResults() {{
+    const direction=downloadOrderSelect.value==="asc"?1:-1;
+    const sorted=[...civitaiSearchItems].sort((a,b)=>(Number(a.downloads||0)-Number(b.downloads||0))*direction);
+    civitaiResultsElement.replaceChildren();
+    sorted.forEach(model=>{{
+        const row=document.createElement("div");row.className="civitai-result";
+        const preview=document.createElement("img");preview.alt="";preview.loading="lazy";
+        if(model.preview) preview.src=model.preview;
+        preview.onerror=()=>{{preview.style.visibility="hidden"}};
+        const details=document.createElement("div"),link=document.createElement("a");
+        link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
+        details.appendChild(link);
+        const meta=document.createElement("div");meta.className="civitai-result-meta";meta.textContent=model.type+" · by "+model.creator;details.appendChild(meta);
+        const downloads=document.createElement("div");downloads.className="civitai-result-downloads";
+        downloads.textContent=Number(model.downloads||0).toLocaleString()+" downloads";
+        row.append(preview,details,downloads);civitaiResultsElement.appendChild(row);
+    }});
+    loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
+    civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevant results · ranked by "+(downloadOrderSelect.value==="asc"?"lowest":"highest")+" download count.";
+}}
+
+async function requestCivitaiModels(cursor=null) {{
+    const response=await fetch("/search-models",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{query:civitaiCurrentQuery,cursor,model_type:civitaiCurrentType}})}});
+    const result=await response.json();
+    if(!response.ok||!result.success) throw new Error(result.error||"Civitai search failed.");
+    return result;
+}}
+
+civitaiSearchForm.addEventListener("submit",async event=>{{
+    event.preventDefault();
+    const query=document.getElementById("civitai-search-query").value.trim();if(!query)return;
+    civitaiCurrentQuery=query;civitaiCurrentType=document.getElementById("civitai-model-type").value;
+    civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
+    civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
+    try {{
+        const result=await requestCivitaiModels();civitaiSearchItems=result.items||[];civitaiNextCursor=result.nextCursor||null;
+        if(civitaiSearchItems.length)renderCivitaiResults();else civitaiSearchStatus.textContent="No matching models were found.";
+    }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
+    finally {{civitaiSearchButton.disabled=false;loadMoreModelsButton.disabled=false}}
+}});
+
+loadMoreModelsButton.addEventListener("click",async()=>{{
+    if(!civitaiNextCursor)return;
+    loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Loading the next page of relevance-ranked results...";
+    try {{
+        const result=await requestCivitaiModels(civitaiNextCursor);civitaiSearchItems.push(...(result.items||[]));civitaiNextCursor=result.nextCursor||null;
+        renderCivitaiResults();
+    }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
+    finally {{loadMoreModelsButton.disabled=false}}
+}});
+downloadOrderSelect.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});
 
 function filterLibrary() {{
     const query = document.getElementById("search")
