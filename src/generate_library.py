@@ -815,7 +815,7 @@ main {{
 .online-search-controls button:disabled,#load-more-models:disabled {{opacity:.5;cursor:wait}}
 .online-search-advanced {{margin-top:10px;color:#bbb;font-size:11px}}
 .online-search-advanced summary {{cursor:pointer;color:#c9a7ff;user-select:none}}
-.online-search-advanced-fields {{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:12px;align-items:center;padding:10px 0 2px}}
+.online-search-advanced-fields {{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:center;padding:10px 0 2px}}
 .online-search-advanced-fields input[type="text"] {{min-width:0;padding:8px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:11px}}
 .online-search-advanced-fields label {{display:flex;align-items:center;gap:6px;white-space:nowrap}}
 .online-search-content-preference {{margin-top:10px;padding:9px 10px;background:#20202a;border:1px solid #3a3a48;border-radius:5px;font-size:11px}}
@@ -1199,7 +1199,7 @@ footer {{
 
     <section class="online-search-panel">
         <h2>Search Civitai Models</h2>
-        <p class="online-search-description">Civitai finds relevant matches first. Reorder that same result set by the available statistics below; changing the ranking never runs a separate popularity search. Most Buzz uses Civitai's tipped-amount metric.</p>
+        <p class="online-search-description">Civitai finds relevant matches first. Reorder those matches by the available statistics below; changing the ranking never runs a separate popularity search. Sorting applies to results loaded so far, and “Load more” expands the pool. Most Buzz uses Civitai's tipped-amount metric.</p>
         <form class="online-search-controls" id="civitai-search-form">
             <input type="search" id="civitai-search-query" placeholder="Search Civitai models..." required>
             <select id="civitai-model-type" aria-label="Model type">
@@ -1231,7 +1231,11 @@ footer {{
             <summary>Advanced Civitai filters</summary>
             <div class="online-search-advanced-fields">
                 <input type="text" id="civitai-base-models" placeholder="Base model(s), comma-separated (e.g. Illustrious, Pony, SDXL 1.0)" aria-label="Base model filter">
+                <input type="text" id="civitai-tag-filter" placeholder="Civitai tag (optional)" aria-label="Tag filter">
+                <input type="text" id="civitai-creator-filter" placeholder="Creator username (optional)" aria-label="Creator filter">
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
+                <label><input type="checkbox" id="civitai-from-platform"> Trained on Civitai</label>
+                <label><input type="checkbox" id="civitai-early-access"> Include early-access versions</label>
             </div>
         </details>
         <div id="civitai-search-status"></div><div id="civitai-search-results"></div>
@@ -1419,7 +1423,11 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
     const baseModelText=document.getElementById("civitai-base-models").value.trim();
     civitaiCurrentFilters={{
         base_models:baseModelText,
-        supports_generation:document.getElementById("civitai-supports-generation").checked
+        tag:document.getElementById("civitai-tag-filter").value.trim(),
+        username:document.getElementById("civitai-creator-filter").value.trim(),
+        supports_generation:document.getElementById("civitai-supports-generation").checked,
+        from_platform:document.getElementById("civitai-from-platform").checked,
+        early_access:document.getElementById("civitai-early-access").checked
     }};
     civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
     civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
