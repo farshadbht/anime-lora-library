@@ -139,6 +139,58 @@ class CivitaiAPI:
         response.raise_for_status()
         return response.json()
 
+    def get_version_images(self, version_id, limit=200, max_pages=20):
+        """Retrieve image IDs and metadata for a specific model version."""
+        images = []
+        seen_ids = set()
+        cursor = None
+        seen_cursors = set()
+
+        for _ in range(max_pages):
+            params = {
+                "modelVersionId": int(version_id),
+                "limit": max(1, min(int(limit), 200)),
+                "withMeta": "true"
+            }
+            if cursor:
+                params["cursor"] = cursor
+
+            response = self.session.get(
+                f"{self.base_url}/images",
+                params=params,
+                timeout=60
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+            for item in payload.get("items", []):
+                image_id = item.get("id")
+                if image_id is not None and image_id in seen_ids:
+                    continue
+                if image_id is not None:
+                    seen_ids.add(image_id)
+
+                # Deliberately omit reaction statistics; they are not part
+                # of this archive's requested image metadata.
+                images.append({
+                    key: item[key]
+                    for key in (
+                        "id", "url", "hash", "width", "height", "nsfw",
+                        "nsfwLevel", "createdAt", "postId", "meta",
+                        "username", "modelVersionIds", "browsingLevel"
+                    )
+                    if key in item
+                })
+
+            metadata = payload.get("metadata") or {}
+            next_cursor = metadata.get("nextCursor")
+            if not next_cursor or next_cursor in seen_cursors:
+                break
+            seen_cursors.add(next_cursor)
+            cursor = next_cursor
+
+        return images
+
     def get_model(self, model_id):
         return self._get(f"models/{model_id}")
 
@@ -212,11 +264,25 @@ class CivitaiAPI:
                 "or Civitai no longer makes it available."
             )
 
+        gallery_images_by_version = {}
+        gallery_image_errors = {}
+        for version in versions:
+            version_id = version.get("id")
+            try:
+                gallery_images_by_version[str(version_id)] = (
+                    self.get_version_images(version_id)
+                )
+            except requests.RequestException as error:
+                gallery_images_by_version[str(version_id)] = []
+                gallery_image_errors[str(version_id)] = str(error)
+
         return {
             "model": model_data,
             "versions": versions,
             "selected_version_id": selected_version_id,
-            "all_versions_included": True
+            "all_versions_included": True,
+            "gallery_images_by_version": gallery_images_by_version,
+            "gallery_image_errors": gallery_image_errors
         }
 
 
