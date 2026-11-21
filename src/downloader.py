@@ -355,10 +355,12 @@ def download_version_assets(api, version, version_folder, download_options=None)
                         except (OSError, json.JSONDecodeError):
                             previous_url = None
 
-                    # If the gallery image at this position changed, never
-                    # mistake the old image file for the newly listed asset.
-                    if destination.exists() and previous_url != url:
-                        destination.unlink()
+                    # If the gallery image at this position changed, remove
+                    # its old generated filename as well as any stale partial.
+                    if previous_url != url:
+                        for old_file in images_folder.glob(f"image_{index:03d}.*"):
+                            if old_file.is_file():
+                                old_file.unlink()
                     partial = destination.with_name(destination.name + ".part")
                     if partial.exists() and previous_url != url:
                         partial.unlink()
