@@ -168,7 +168,7 @@ def save_download_report(root, version_results, download_options, selected_versi
     return path
 
 
-def create_model_archive(model_data, versions, download_directory, save_descriptions=True):
+def create_model_archive(model_data, versions, download_directory, save_descriptions=True, page_metadata=None):
     """Create the complete directory structure and useful metadata summaries."""
     model_name = safe_name(model_data.get("name", "Unnamed Model"))
     download_root = Path(download_directory)
@@ -211,6 +211,8 @@ def create_model_archive(model_data, versions, download_directory, save_descript
     # Preserve the complete, unmodified Civitai model response.
     save_json(root / "Metadata.json", model_data)
     save_json(root / "ModelInfo.json", _model_summary(model_data))
+    if isinstance(page_metadata, dict):
+        save_json(root / "WebpageMetadata.json", page_metadata)
 
     if save_descriptions:
         save_description(
@@ -258,8 +260,36 @@ def create_model_archive(model_data, versions, download_directory, save_descript
             ]
         )
 
+        # Save page-only details for the version selected in the submitted URL.
+        selected_page_version = None
+        if isinstance(page_metadata, dict):
+            selected_page_version = (page_metadata.get("version_selector") or {}).get(
+                "selected_version_id_from_url"
+            )
+        page_images = []
+        page_generation_panels = []
+        page_download_cards = []
+        if isinstance(page_metadata, dict) and selected_page_version == version_id:
+            page_images = page_metadata.get("gallery_images") or []
+            page_generation_panels = page_metadata.get("generation_panels") or []
+            page_download_cards = page_metadata.get("download_cards") or []
+
+        save_json(
+            version_folder / "PageMetadata.json",
+            {
+                "selected_version_on_page": selected_page_version == version_id,
+                "gallery_images": page_images,
+                "generation_panels": page_generation_panels,
+                "download_cards": [
+                    item for item in page_download_cards
+                    if item.get("version_id") in (None, version_id)
+                ]
+            }
+        )
+
         # Save each preview image's generation metadata separately.
         for index, image in enumerate(version.get("images", []), 1):
+            page_image = page_images[index - 1] if index <= len(page_images) else None
             image_data = {
                 "image_number": index,
                 "url": image.get("url"),
@@ -268,7 +298,9 @@ def create_model_archive(model_data, versions, download_directory, save_descript
                 "nsfw": image.get("nsfw"),
                 "nsfwLevel": image.get("nsfwLevel"),
                 "type": image.get("type"),
-                "meta": image.get("meta")
+                "meta": image.get("meta"),
+                "civitai_image_id": page_image.get("image_id") if page_image else None,
+                "page_gallery": page_image
             }
             save_json(
                 image_metadata_folder / f"image_{index:03d}.json",
