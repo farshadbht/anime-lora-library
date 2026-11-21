@@ -249,7 +249,11 @@ def search_civitai_models(
         model_type=model_type,
         base_models=filters.get("base_models"),
         include_nsfw=mature_enabled,
-        supports_generation=filters.get("supports_generation") is True
+        supports_generation=filters.get("supports_generation") is True,
+        tag=filters.get("tag"),
+        username=filters.get("username"),
+        from_platform=filters.get("from_platform") is True,
+        early_access=filters.get("early_access") is True
     )
 
     items = []
@@ -264,8 +268,10 @@ def search_civitai_models(
             len(version.get("images") or [])
             for version in versions
         )
-        created_at = model.get("createdAt") or (
-            latest.get("createdAt") if latest else None
+        created_at = (
+            model.get("createdAt")
+            or (latest.get("publishedAt") if latest else None)
+            or (latest.get("createdAt") if latest else None)
         )
 
         items.append({
@@ -279,7 +285,7 @@ def search_civitai_models(
             "likes": int(stats.get("thumbsUpCount") or 0),
             "buzz": int(stats.get("tippedAmountCount") or 0),
             "comments": int(stats.get("commentCount") or 0),
-            "favorites": int(stats.get("favoriteCount") or 0),
+            "favorites": int(stats.get("collectedCount", stats.get("favoriteCount")) or 0),
             "imagesCount": image_count,
             "rating": stats.get("rating"),
             "ratingCount": int(stats.get("ratingCount") or 0),
