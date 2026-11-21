@@ -1,0 +1,397 @@
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import Mock
+
+import requests
+from bs4 import BeautifulSoup
+
+from src.api import CivitaiAPI
+from src.downloader import (
+    _model_file_destination,
+    _session_for_model_download,
+    download_file,
+    safe_filename,
+)
+from src.organizer import (
+    create_model_archive,
+    safe_name,
+    save_description,
+    save_download_report,
+)
+from src.page_extractor import (
+    _extract_download_cards,
+    _extract_generation_panels,
+    _extract_image_gallery,
+    _extract_version_selector,
+)
+
+
+class FakeResponse:
+    def __init__(self, body=b"", status_code=200, headers=None):
+        self.body = body
+        self.status_code = status_code
+        self.headers = headers or {"Content-Length": str(len(body))}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}")
+
+    def iter_content(self, chunk_size):
+        for start in range(0, len(self.body), chunk_size):
+            yield self.body[start:start + chunk_size]
+
+
+class FakeSession:
+    def __init__(self, response=None):
+        self.response = response
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        if self.response is None:
+            raise AssertionError("Unexpected network request")
+        return self.response
+
+
+class URLAndMetadataTests(unittest.TestCase):
+    def test_parse_model_url_accepts_supported_hosts_and_version(self):
+        self.assertEqual(
+            CivitaiAPI.parse_model_url(
+                "https://civitai.red/models/2780996/example?modelVersionId=3132064"
+            ),
+            (2780996, 3132064)
+        )
+
+    def test_parse_model_url_rejects_untrusted_and_invalid_urls(self):
+        for url in (
+            "http://civitai.com/models/12/example",
+            "https://evil.example/models/12/example",
+            "https://civitai.com/users/12",
+            "https://civitai.com/models/12/example?modelVersionId=abc",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValueError):
+                    CivitaiAPI.parse_model_url(url)
+
+    def test_image_asset_key_normalizes_resized_cdn_urls(self):
+        one = "https://image.civitai.com/x/070792ae-c856-4433-9c01-004c32053fa3/anim=false,width=800/preview.jpeg"
+        two = "https://image.civitai.com/x/070792ae-c856-4433-9c01-004c32053fa3/anim=false,width=1600/preview.jpeg"
+        self.assertEqual(
+            CivitaiAPI._image_asset_key(one),
+            CivitaiAPI._image_asset_key(two)
+        )
+
+    def test_filename_helpers_handle_windows_reserved_names_and_collisions(self):
+        self.assertEqual(safe_filename("CON"), "_CON")
+        self.assertEqual(safe_name("NUL"), "_NUL")
+        with tempfile.TemporaryDirectory() as folder:
+            used = set()
+            first = _model_file_destination(
+                Path(folder), {"name": "weights.safetensors", "id": 1}, 1, used
+            )
+            second = _model_file_destination(
+                Path(folder), {"name": "weights.safetensors", "id": 2}, 2, used
+            )
+            self.assertEqual(first.name, "weights.safetensors")
+            self.assertIn("[2]", second.name)
+
+
+class DownloadIntegrityTests(unittest.TestCase):
+    def test_download_writes_file_and_checks_size_and_sha256(self):
+        body = b"small model fixture"
+        digest = hashlib.sha256(body).hexdigest()
+        session = FakeSession(FakeResponse(body))
+        with tempfile.TemporaryDirectory() as folder:
+            path, downloaded = download_file(
+                session,
+                "https://civitai.com/file",
+                Path(folder) / "weights.bin",
+                expected_size=len(body),
+                expected_sha256=digest,
+                return_status=True
+            )
+            self.assertTrue(downloaded)
+            self.assertEqual(path.read_bytes(), body)
+            self.assertFalse(path.with_name(path.name + ".part").exists())
+
+    def test_existing_valid_file_is_reused_without_network(self):
+        body = b"already here"
+        session = FakeSession()
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "weights.bin"
+            path.write_bytes(body)
+            result, downloaded = download_file(
+                session,
+                "https://civitai.com/file",
+                path,
+                expected_size=len(body),
+                expected_sha256=hashlib.sha256(body).hexdigest(),
+                return_status=True
+            )
+            self.assertEqual(result, path)
+            self.assertFalse(downloaded)
+            self.assertEqual(session.calls, [])
+
+    def test_partial_download_resumes_only_at_valid_content_range(self):
+        body = b"abcdef"
+        session = FakeSession(FakeResponse(
+            b"def",
+            status_code=206,
+            headers={"Content-Length": "3", "Content-Range": "bytes 3-5/6"}
+        ))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "weights.bin"
+            path.with_name("weights.bin.part").write_bytes(b"abc")
+            result = download_file(
+                session,
+                "https://civitai.com/file",
+                path,
+                expected_size=6,
+                expected_sha256=hashlib.sha256(body).hexdigest()
+            )
+            self.assertEqual(result.read_bytes(), body)
+            self.assertEqual(
+                session.calls[0][1]["headers"]["Range"],
+                "bytes=3-"
+            )
+
+    def test_invalid_resume_range_is_rejected_without_appending(self):
+        session = FakeSession(FakeResponse(
+            b"def",
+            status_code=206,
+            headers={"Content-Length": "3", "Content-Range": "bytes 2-4/5"}
+        ))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "weights.bin"
+            partial = path.with_name("weights.bin.part")
+            partial.write_bytes(b"abc")
+            with self.assertRaises(IOError):
+                download_file(session, "https://civitai.com/file", path)
+            self.assertEqual(partial.read_bytes(), b"abc")
+            self.assertFalse(path.exists())
+
+    def test_server_ignoring_range_restarts_instead_of_appending(self):
+        session = FakeSession(FakeResponse(b"fresh full body", status_code=200))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "weights.bin"
+            path.with_name("weights.bin.part").write_bytes(b"old")
+            result = download_file(
+                session,
+                "https://civitai.com/file",
+                path,
+                expected_size=len(b"fresh full body")
+            )
+            self.assertEqual(result.read_bytes(), b"fresh full body")
+
+    def test_bad_hash_removes_invalid_partial(self):
+        session = FakeSession(FakeResponse(b"wrong"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "weights.bin"
+            partial = path.with_name("weights.bin.part")
+            with self.assertRaises(IOError):
+                download_file(
+                    session,
+                    "https://civitai.com/file",
+                    path,
+                    expected_size=5,
+                    expected_sha256="0" * 64
+                )
+            self.assertFalse(partial.exists())
+            self.assertFalse(path.exists())
+
+    def test_credentials_are_not_forwarded_to_external_file_hosts(self):
+        api = Mock()
+        api.session = Mock()
+        trusted, temporary = _session_for_model_download(
+            api, "https://civitai.com/api/download/models/1"
+        )
+        self.assertIs(trusted, api.session)
+        self.assertIsNone(temporary)
+
+        external, temporary = _session_for_model_download(
+            api, "https://cdn.example.net/model.bin"
+        )
+        try:
+            self.assertIsNot(external, api.session)
+            self.assertIs(temporary, external)
+            self.assertNotIn("Authorization", external.headers)
+        finally:
+            temporary.close()
+
+
+class PageExtractionTests(unittest.TestCase):
+    def test_gallery_extraction_keeps_image_id_order_and_alt(self):
+        soup = BeautifulSoup(
+            '<a href="/images/123"><div style="aspect-ratio: 2 / 3">'
+            '<img src="https://image.civitai.com/example.jpg" alt="preview.png">'
+            '</div></a>',
+            "html.parser"
+        )
+        images = _extract_image_gallery(
+            soup, "https://civitai.com/models/1/example"
+        )
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0]["image_id"], 123)
+        self.assertEqual(images[0]["order"], 1)
+        self.assertEqual(images[0]["alt"], "preview.png")
+        self.assertEqual(images[0]["aspect_ratio"]["text"], "2 / 3")
+
+    def test_version_selector_reads_url_selected_version(self):
+        soup = BeautifulSoup(
+            '<button data-version-id="3132064">v1.0</button>'
+            '<button data-version-id="3132065">v2.0</button>',
+            "html.parser"
+        )
+        result = _extract_version_selector(
+            soup,
+            "https://civitai.com/models/1/example?modelVersionId=3132065"
+        )
+        self.assertEqual(result["selected_version_id_from_url"], 3132065)
+        self.assertEqual(result["visible_versions"][1]["selected"], True)
+
+    def test_download_card_extracts_file_and_verification_details(self):
+        soup = BeautifulSoup(
+            '<div><p>1 variant available fp16 SafeTensor '
+            'Darkness-Konosuba-anima-v1.safetensors 87.65 MB Verified</p>'
+            '<time datetime="2026-07-15T16:14:16+03:30"></time>'
+            '<a href="/api/download/models/3132064?fileId=3012668">Download</a></div>',
+            "html.parser"
+        )
+        cards = _extract_download_cards(
+            soup, "https://civitai.com/models/1/example"
+        )
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(cards[0]["version_id"], 3132064)
+        self.assertEqual(cards[0]["file_id"], 3012668)
+        self.assertEqual(cards[0]["filename"], "Darkness-Konosuba-anima-v1.safetensors")
+        self.assertTrue(cards[0]["verified"])
+        self.assertEqual(cards[0]["variant_count"], 1)
+
+    def test_generation_panel_extracts_positive_negative_prompts(self):
+        soup = BeautifulSoup(
+            '<div class="mantine-Card-root">'
+            '<div><p>Prompt</p></div><div data-line-clamp="true">positive prompt words</div>'
+            '<div><p>Negative prompt</p></div><div data-line-clamp="true">negative prompt words</div>'
+            '<div><p>Other metadata</p></div>'
+            '</div>',
+            "html.parser"
+        )
+        panels = _extract_generation_panels(soup)
+        self.assertEqual(len(panels), 1)
+        self.assertEqual(panels[0]["positive_prompt"], "positive prompt words")
+        self.assertEqual(panels[0]["negative_prompt"], "negative prompt words")
+
+
+class ArchiveTests(unittest.TestCase):
+    def test_description_keeps_paragraphs_and_removes_scripts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            save_description(
+                Path(folder) / "Description",
+                "<p>First paragraph.</p><p>Second paragraph.</p><script>bad()</script>"
+            )
+            text = (Path(folder) / "Description" / "Description.txt").read_text(
+                encoding="utf-8"
+            )
+            self.assertEqual(text, "First paragraph.\n\nSecond paragraph.")
+            html = (Path(folder) / "Description" / "Description.html").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("<script>", html)
+
+    def test_archive_includes_all_versions_but_page_fields_only_for_selected(self):
+        model = {
+            "id": 100,
+            "name": "Fixture Character",
+            "type": "LORA",
+            "description": "<p>Model description.</p>",
+            "creator": {"username": "fixture"}
+        }
+        versions = [
+            {
+                "id": 11, "name": "v1.0", "baseModel": "Anima",
+                "description": "<p>Version one.</p>", "files": [],
+                "images": [{"url": "https://image.civitai.com/a/one.jpg", "meta": {"prompt": "one"}}]
+            },
+            {
+                "id": 12, "name": "v2.0", "baseModel": "Anima",
+                "description": "<p>Version two.</p>", "files": [],
+                "images": [{"url": "https://image.civitai.com/a/two.jpg", "meta": {"prompt": "two"}}]
+            }
+        ]
+        page = {
+            "fetch_status": "success",
+            "version_selector": {
+                "selected_version_id_from_url": 11,
+                "displayed_version_id": 11
+            },
+            "details_section": {"fields": {"air": "civitai:100@11"}},
+            "model_header": {"title": "Fixture Character"},
+            "gallery_images": [{"image_id": 501, "url": versions[0]["images"][0]["url"]}],
+            "generation_panels": [{"positive_prompt": "fixture prompt"}],
+            "download_cards": [{"version_id": 11, "file_id": 21}]
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            root = create_model_archive(
+                model, versions, folder, save_descriptions=True,
+                page_metadata=page,
+                gallery_images_by_version={"11": [], "12": []}
+            )
+            index = json.loads((root / "ArchiveIndex.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["version_count"], 2)
+            self.assertTrue(index["all_model_versions_included"])
+
+            v1 = root / "Versions" / "v1.0 [11]"
+            v2 = root / "Versions" / "v2.0 [12]"
+            p1 = json.loads((v1 / "PageMetadata.json").read_text(encoding="utf-8"))
+            p2 = json.loads((v2 / "PageMetadata.json").read_text(encoding="utf-8"))
+            self.assertTrue(p1["selected_version_on_page"])
+            self.assertEqual(p1["details_section"]["fields"]["air"], "civitai:100@11")
+            self.assertFalse(p2["selected_version_on_page"])
+            self.assertIsNone(p2["details_section"])
+            image_meta = json.loads(
+                (v1 / "Image_Metadata" / "image_001.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(image_meta["civitai_image_id"], 501)
+            self.assertEqual(image_meta["generation_summary"]["prompt"], "one")
+
+    def test_download_report_uses_archive_relative_paths_and_present_counts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "Archive"
+            version_dir = root / "Versions" / "v1"
+            version_dir.mkdir(parents=True)
+            model_file = version_dir / "Files" / "weights.safetensors"
+            model_file.parent.mkdir(parents=True)
+            model_file.write_bytes(b"x")
+            report_path = save_download_report(
+                root,
+                [{
+                    "version_id": 11, "version_name": "v1",
+                    "files_downloaded": [str(model_file)],
+                    "images_downloaded": [],
+                    "files_already_present": [str(model_file)],
+                    "images_already_present": [],
+                    "files_skipped": 0, "images_skipped": 0, "errors": []
+                }],
+                {"model_files": True, "images": True},
+                selected_version_id=11
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                report["versions"][0]["files_downloaded"][0],
+                "Versions/v1/Files/weights.safetensors"
+            )
+            self.assertEqual(report["files_already_present"], 1)
+            self.assertEqual(report["status"], "completed")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
