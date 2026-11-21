@@ -185,7 +185,7 @@ def _file_summary(model_file):
         model_file,
         (
             "name", "type", "sizeKB", "pickleScanResult",
-            "pickleScanMessage", "virusScanResult", "hashes",
+            "pickleScanMessage", "virusScanResult", "scannedAt", "hashes",
             "metadata", "primary", "downloadUrl"
         )
     )
@@ -436,6 +436,11 @@ def create_model_archive(
                 "nsfw": image.get("nsfw"),
                 "nsfwLevel": image.get("nsfwLevel"),
                 "type": image.get("type"),
+                "hash": image.get("hash") or (api_image or {}).get("hash"),
+                "created_at": image.get("createdAt") or (api_image or {}).get("createdAt"),
+                "post_id_from_version": image.get("postId"),
+                "has_meta": image.get("hasMeta"),
+                "has_positive_prompt": image.get("hasPositivePrompt"),
                 "meta": image.get("meta") or (api_image or {}).get("meta"),
                 "civitai_image_id": (
                     (api_image or {}).get("id")
@@ -468,6 +473,12 @@ def create_model_archive(
             "name": model_data.get("name"),
             "creator": model_data.get("creator"),
             "type": model_data.get("type"),
+            "selected_version_id_from_url": (
+                (page_metadata.get("version_selector") or {}).get(
+                    "selected_version_id_from_url"
+                ) if isinstance(page_metadata, dict) else None
+            ),
+            "all_model_versions_included": True,
             "version_count": len(version_records),
             "versions": version_records
         }
