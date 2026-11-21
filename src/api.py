@@ -29,11 +29,18 @@ class CivitaiAPI:
 
     @staticmethod
     def parse_model_url(url):
-        parsed = urlparse(url)
+        parsed = urlparse(str(url or "").strip())
         query = parse_qs(parsed.query)
 
+        if parsed.scheme.lower() != "https":
+            raise ValueError("Use a secure HTTPS Civitai model URL.")
+
+        hostname = (parsed.hostname or "").lower()
+        if hostname not in ("civitai.com", "www.civitai.com", "civitai.red", "www.civitai.red"):
+            raise ValueError("The URL must belong to civitai.com or civitai.red.")
+
         model_match = re.search(
-            r"/models/(\d+)",
+            r"/models/(\d+)(?:/|$)",
             parsed.path
         )
 
@@ -45,7 +52,10 @@ class CivitaiAPI:
         version_id = None
 
         if "modelVersionId" in query:
-            version_id = int(query["modelVersionId"][0])
+            try:
+                version_id = int(query["modelVersionId"][0])
+            except (TypeError, ValueError):
+                raise ValueError("The modelVersionId in this URL is invalid.")
 
         return model_id, version_id
 
@@ -139,6 +149,7 @@ class CivitaiAPI:
         versions = model_data.get("modelVersions", [])
 
         complete_versions = []
+        failures = []
 
         for version in versions:
             version_id = version.get("id")
@@ -156,9 +167,16 @@ class CivitaiAPI:
                 complete_versions.append(full_version)
 
             except requests.RequestException as error:
-                print(
-                    f"Could not retrieve version {version_id}: {error}"
-                )
+                message = f"Version {version_id}: {error}"
+                failures.append(message)
+                print(f"ERROR: Could not retrieve {message}")
+
+        if failures:
+            details = "\n".join(failures)
+            raise RuntimeError(
+                "The archive was not started because Civitai did not return "
+                "every model version successfully:\n" + details
+            )
 
         return complete_versions
 
@@ -176,10 +194,18 @@ class CivitaiAPI:
 
         versions = self.get_all_versions(model_data)
 
+        version_ids = {version.get("id") for version in versions}
+        if selected_version_id is not None and selected_version_id not in version_ids:
+            raise ValueError(
+                f"Version {selected_version_id} is not part of this model, "
+                "or Civitai no longer makes it available."
+            )
+
         return {
             "model": model_data,
             "versions": versions,
-            "selected_version_id": selected_version_id
+            "selected_version_id": selected_version_id,
+            "all_versions_included": True
         }
 
 
