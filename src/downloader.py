@@ -80,7 +80,7 @@ def download_file(
 
     if destination.exists():
         if _existing_file_matches(destination, expected_size, expected_sha256):
-            print(f"Already present and verified: {destination.name}")
+            print(f"Already present; available validation checks passed: {destination.name}")
             return (destination, False) if return_status else destination
         print(f"Existing file failed validation; downloading again: {destination.name}")
         destination.unlink()
@@ -113,6 +113,10 @@ def download_file(
             mode = "ab"
             downloaded = existing_size
             range_total = int(match.group(3)) if match.group(3).isdigit() else None
+        elif response.status_code == 206:
+            raise IOError(
+                f"Server returned partial content without a resume request for {destination.name}."
+            )
         else:
             # A server that ignores Range returns the full file; restart rather
             # than appending a second copy of its contents.
@@ -143,10 +147,11 @@ def download_file(
             file.flush()
 
     actual_size = partial.stat().st_size
-    if expected_size is not None and actual_size != expected_size:
+    target_size = expected_size if expected_size is not None else range_total
+    if target_size is not None and actual_size != target_size:
         raise IOError(
             f"Size validation failed for {destination.name}: "
-            f"expected {expected_size} bytes, received {actual_size} bytes. "
+            f"expected {target_size} bytes, received {actual_size} bytes. "
             "The partial file was retained for a possible retry."
         )
 
