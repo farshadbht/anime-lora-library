@@ -6,8 +6,10 @@ from urllib.parse import urlparse, parse_qs
 
 class CivitaiAPI:
     BASE_URL = "https://civitai.com/api/v1"
+    MATURE_BASE_URL = "https://civitai.red/api/v1"
 
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, mature_content=False):
+        self.base_url = self.MATURE_BASE_URL if mature_content is True else self.BASE_URL
         self.session = requests.Session()
         self.session.headers.update({
             "Accept": "application/json",
@@ -18,7 +20,7 @@ class CivitaiAPI:
             self.session.headers["Authorization"] = f"Bearer {api_key}"
 
     def _get(self, endpoint):
-        url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
 
         response = self.session.get(url, timeout=60)
         response.raise_for_status()
@@ -54,7 +56,7 @@ class CivitaiAPI:
         limit=100,
         model_type="LORA",
         base_models=None,
-        include_nsfw=True,
+        include_nsfw=False,
         supports_generation=False
     ):
         """Search Civitai's model index; callers may re-rank returned matches."""
@@ -103,7 +105,7 @@ class CivitaiAPI:
             params["supportsGeneration"] = "true"
 
         response = self.session.get(
-            f"{self.BASE_URL}/models", params=params, timeout=60
+            f"{self.base_url}/models", params=params, timeout=60
         )
         response.raise_for_status()
         return response.json()
