@@ -1196,8 +1196,7 @@ footer {{
                 <option value="Checkpoint">Checkpoint</option><option value="TextualInversion">Textual Inversion</option><option value="Controlnet">ControlNet</option>
             </select>
             <select id="civitai-sort-by" aria-label="Rank relevant results">
-                <option value="relevance" selected>Relevance</option>
-                <option value="downloads">Most Downloaded</option>
+                <option value="downloads" selected>Most Downloaded</option>
                 <option value="likes">Most Liked</option>
                 <option value="buzz">Most Buzz (tipped amount)</option>
                 <option value="comments">Most Discussed</option>
@@ -1319,9 +1318,7 @@ function renderCivitaiResults() {{
         details.appendChild(link);
         const meta=document.createElement("div");meta.className="civitai-result-meta";meta.textContent=model.type+" · by "+model.creator;details.appendChild(meta);
         const metric=document.createElement("div");metric.className="civitai-result-downloads";
-        if(sortBy==="relevance") {{
-            metric.textContent="Civitai relevance";
-        }} else if(sortBy==="newest"||sortBy==="oldest") {{
+        if(sortBy==="newest"||sortBy==="oldest") {{
             metric.textContent=model.createdAt?new Date(model.createdAt).toLocaleDateString():"Date unavailable";
         }} else if(sortBy==="rating"&&model.rating==null) {{
             metric.textContent="No rating data";
@@ -1332,10 +1329,10 @@ function renderCivitaiResults() {{
         row.append(preview,details,metric);civitaiResultsElement.appendChild(row);
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
-    const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
-    const directionLabel=(sortBy==="newest"||sortBy==="oldest"||sortBy==="relevance")?"":(direction===1?" · lowest first":" · highest first");
+    const labels={{downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
+    const directionLabel=(sortBy==="newest"||sortBy==="oldest")?"":(direction===1?" · lowest first":" · highest first");
     civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevant results · sorted by "+labels[sortBy]+directionLabel+".";
-    civitaiSortDirection.disabled=sortBy==="relevance"||sortBy==="newest"||sortBy==="oldest";
+    civitaiSortDirection.disabled=sortBy==="newest"||sortBy==="oldest";
 }}
 
 async function requestCivitaiModels(cursor=null) {{
