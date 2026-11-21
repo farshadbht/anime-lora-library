@@ -1432,7 +1432,7 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
     civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
     civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
     try {{
-        const result=await requestCivitaiModels();civitaiSearchItems=(result.items||[]).map((item,index)=>({...item,_civitaiRank:index}));civitaiNextCursor=result.nextCursor||null;
+        const result=await requestCivitaiModels();civitaiSearchItems=(result.items||[]).map((item,index)=>({{...item,_civitaiRank:index}}));civitaiNextCursor=result.nextCursor||null;
         if(civitaiSearchItems.length)renderCivitaiResults();else civitaiSearchStatus.textContent="No matching models were found.";
     }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
     finally {{civitaiSearchButton.disabled=false;loadMoreModelsButton.disabled=false}}
@@ -1442,7 +1442,7 @@ loadMoreModelsButton.addEventListener("click",async()=>{{
     if(!civitaiNextCursor)return;
     loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Loading the next page of relevance-ranked results...";
     try {{
-        const result=await requestCivitaiModels(civitaiNextCursor);const rankOffset=civitaiSearchItems.length;civitaiSearchItems.push(...(result.items||[]).map((item,index)=>({...item,_civitaiRank:rankOffset+index})));civitaiNextCursor=result.nextCursor||null;
+        const result=await requestCivitaiModels(civitaiNextCursor);const rankOffset=civitaiSearchItems.length;civitaiSearchItems.push(...(result.items||[]).map((item,index)=>({{...item,_civitaiRank:rankOffset+index}})));civitaiNextCursor=result.nextCursor||null;
         renderCivitaiResults();
     }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
     finally {{loadMoreModelsButton.disabled=false}}
