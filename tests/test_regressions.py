@@ -127,6 +127,7 @@ class CivitaiAPITests(unittest.TestCase):
 
         with patch("src.api.requests.Session") as session_factory:
             search_session = session_factory.return_value
+            search_session.headers = {}
             search_session.post.return_value = response
 
             result = api.search_site_models(
@@ -173,6 +174,7 @@ class CivitaiAPITests(unittest.TestCase):
         response.json.return_value = {"hits": []}
 
         with patch("src.api.requests.Session") as session_factory:
+            session_factory.return_value.headers = {}
             session_factory.return_value.post.return_value = response
             api.search_site_models("epsilon")
 
