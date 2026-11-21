@@ -180,6 +180,35 @@ def _image_asset_key(url):
     return match.group(1).lower() if match else value.split("?", 1)[0]
 
 
+def _generation_summary(meta, image):
+    """Expose commonly searched generation fields while retaining raw metadata."""
+    meta = meta if isinstance(meta, dict) else {}
+    prompt = meta.get("prompt") or ""
+    lora_matches = re.findall(
+        r"<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+))>",
+        prompt,
+        re.IGNORECASE
+    )
+    return {
+        "positive_prompt": meta.get("prompt"),
+        "negative_prompt": meta.get("negativePrompt"),
+        "checkpoint": meta.get("Model") or meta.get("model"),
+        "checkpoint_hash": meta.get("Model hash") or meta.get("modelHash"),
+        "sampler": meta.get("sampler"),
+        "steps": meta.get("steps"),
+        "cfg_scale": meta.get("cfgScale"),
+        "seed": meta.get("seed"),
+        "width": image.get("width") or meta.get("width"),
+        "height": image.get("height") or meta.get("height"),
+        "resources": meta.get("resources"),
+        "civitai_resources": meta.get("civitaiResources"),
+        "lora_prompt_references": [
+            {"name": name, "weight": float(weight)}
+            for name, weight in lora_matches
+        ]
+    }
+
+
 def _file_summary(model_file):
     """Keep useful file details while retaining the raw response elsewhere."""
     summary = _available_fields(
@@ -463,6 +492,10 @@ def create_model_archive(
                 "has_meta": image.get("hasMeta"),
                 "has_positive_prompt": image.get("hasPositivePrompt"),
                 "meta": image.get("meta") or (api_image or {}).get("meta"),
+                "generation_summary": _generation_summary(
+                    image.get("meta") or (api_image or {}).get("meta"),
+                    image
+                ),
                 "civitai_image_id": (
                     (api_image or {}).get("id")
                     or image.get("id")
