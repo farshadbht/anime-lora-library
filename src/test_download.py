@@ -1,7 +1,7 @@
 import json
 
 from api import CivitaiAPI
-from organizer import create_model_archive, safe_name
+from organizer import create_model_archive, safe_name, save_download_report
 from downloader import download_version_assets
 
 
@@ -46,7 +46,13 @@ def main():
             version_folder,
             download_options=download_options
         )
+        results["version_id"] = version.get("id")
+        results["version_name"] = version.get("name")
         all_results.append(results)
+
+    download_report = save_download_report(
+        root, all_results, download_options
+    )
 
     total_files = sum(len(item["files_downloaded"]) for item in all_results)
     total_images = sum(len(item["images_downloaded"]) for item in all_results)
@@ -66,6 +72,7 @@ def main():
     print("Errors:", total_errors)
     print("Settings:", download_options)
     print("Archive:", root)
+    print("Download report:", download_report)
 
 
 if __name__ == "__main__":
