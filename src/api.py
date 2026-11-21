@@ -108,14 +108,15 @@ class CivitaiAPI:
         if supports_generation:
             params["supportsGeneration"] = "true"
 
-        for filter_name, parameter_name in (("tag", "tag"), ("username", "username")):
-            filter_value = filter_name and locals()[filter_name]
+        for filter_name, filter_value in (("tag", tag), ("username", username)):
             if filter_value is not None:
                 filter_value = str(filter_value).strip()
                 if len(filter_value) > 100:
-                    raise ValueError(f"{filter_name.capitalize()} filter must be 100 characters or fewer.")
+                    raise ValueError(
+                        f"{filter_name.capitalize()} filter must be 100 characters or fewer."
+                    )
                 if filter_value:
-                    params[parameter_name] = filter_value
+                    params[filter_name] = filter_value
 
         if from_platform:
             params["fromPlatform"] = "true"
