@@ -1303,9 +1303,9 @@ function renderCivitaiResults() {{
     const sorted=[...civitaiSearchItems];
     if(sortBy==="newest"||sortBy==="oldest") {{
         const dateDirection=sortBy==="newest"?-1:1;
-        sorted.sort((a,b)=>((Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0))*dateDirection);
+        sorted.sort((a,b)=>(((Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0))*dateDirection)||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }} else if(sortBy!=="relevance") {{
-        sorted.sort((a,b)=>(Number(a[sortBy]??0)-Number(b[sortBy]??0))*direction);
+        sorted.sort((a,b)=>((Number(a[sortBy]??0)-Number(b[sortBy]??0))*direction)||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }}
     civitaiResultsElement.replaceChildren();
     sorted.forEach(model=>{{
@@ -1349,7 +1349,7 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
     civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
     civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
     try {{
-        const result=await requestCivitaiModels();civitaiSearchItems=result.items||[];civitaiNextCursor=result.nextCursor||null;
+        const result=await requestCivitaiModels();civitaiSearchItems=(result.items||[]).map((item,index)=>({...item,_civitaiRank:index}));civitaiNextCursor=result.nextCursor||null;
         if(civitaiSearchItems.length)renderCivitaiResults();else civitaiSearchStatus.textContent="No matching models were found.";
     }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
     finally {{civitaiSearchButton.disabled=false;loadMoreModelsButton.disabled=false}}
@@ -1359,7 +1359,7 @@ loadMoreModelsButton.addEventListener("click",async()=>{{
     if(!civitaiNextCursor)return;
     loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Loading the next page of relevance-ranked results...";
     try {{
-        const result=await requestCivitaiModels(civitaiNextCursor);civitaiSearchItems.push(...(result.items||[]));civitaiNextCursor=result.nextCursor||null;
+        const result=await requestCivitaiModels(civitaiNextCursor);const rankOffset=civitaiSearchItems.length;civitaiSearchItems.push(...(result.items||[]).map((item,index)=>({...item,_civitaiRank:rankOffset+index})));civitaiNextCursor=result.nextCursor||null;
         renderCivitaiResults();
     }} catch(error) {{civitaiSearchStatus.textContent="ERROR: "+error.message}}
     finally {{loadMoreModelsButton.disabled=false}}
