@@ -75,6 +75,40 @@ def initialize_data():
         if isinstance(item, dict) and isinstance(item.get("name"), str)
     ]
     load_catalog(CATALOG_PATH, CATALOG_SEED_PATH, legacy_names)
+    refresh_offline_pages()
+
+
+def refresh_offline_pages():
+    """Regenerate legacy model pages when they lack current application controls."""
+    refreshed = 0
+
+    if not DOWNLOADS.is_dir():
+        return refreshed
+
+    for folder in DOWNLOADS.iterdir():
+        if not folder.is_dir():
+            continue
+        if not (folder / "Metadata.json").is_file():
+            continue
+        if not (folder / "ArchiveIndex.json").is_file():
+            continue
+
+        page = folder / "index.html"
+        try:
+            page_html = page.read_text(encoding="utf-8") if page.is_file() else ""
+        except (OSError, UnicodeError):
+            page_html = ""
+
+        if 'class="open-folder-button"' in page_html:
+            continue
+
+        try:
+            generate_offline_site(folder)
+            refreshed += 1
+        except Exception as error:
+            print(f"WARNING: Could not refresh model page for {folder.name}: {error}")
+
+    return refreshed
 
 
 def mature_content_enabled(settings):

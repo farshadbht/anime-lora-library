@@ -568,6 +568,44 @@ class PageExtractionTests(unittest.TestCase):
         self.assertEqual(panels[0]["negative_prompt"], "negative prompt words")
 
 
+class OfflinePageRefreshTests(unittest.TestCase):
+    def test_refreshes_old_model_pages_and_skips_current_pages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            downloads = Path(temporary)
+            old_page_folder = downloads / "Old Model"
+            current_page_folder = downloads / "Current Model"
+            for folder in (old_page_folder, current_page_folder):
+                folder.mkdir()
+                (folder / "Metadata.json").write_text("{}", encoding="utf-8")
+                (folder / "ArchiveIndex.json").write_text("{}", encoding="utf-8")
+
+            (old_page_folder / "index.html").write_text(
+                "<html>legacy page</html>", encoding="utf-8"
+            )
+            (current_page_folder / "index.html").write_text(
+                '<button class="open-folder-button">Open LoRA Folder</button>',
+                encoding="utf-8"
+            )
+
+            with patch.object(library_server_module, "DOWNLOADS", downloads):
+                with patch.object(
+                    library_server_module,
+                    "generate_offline_site",
+                    side_effect=lambda folder: (folder / "index.html").write_text(
+                        '<button class="open-folder-button">Open LoRA Folder</button>',
+                        encoding="utf-8"
+                    )
+                ) as generate_page:
+                    refreshed = library_server_module.refresh_offline_pages()
+
+            self.assertEqual(refreshed, 1)
+            generate_page.assert_called_once_with(old_page_folder)
+            self.assertIn(
+                "open-folder-button",
+                (old_page_folder / "index.html").read_text(encoding="utf-8")
+            )
+
+
 class OpenModelFolderTests(unittest.TestCase):
     def test_model_page_renders_open_folder_button_for_its_archive(self):
         with tempfile.TemporaryDirectory() as temporary:
