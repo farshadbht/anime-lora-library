@@ -333,6 +333,32 @@ def _civitai_preview_urls(images):
     return urls
 
 
+def get_civitai_model_previews(model_id):
+    """Fetch a model's canonical version images as a last-resort preview fallback."""
+    try:
+        model_id = int(model_id)
+    except (TypeError, ValueError):
+        raise ValueError("The Civitai model ID is invalid.")
+    if model_id <= 0:
+        raise ValueError("The Civitai model ID is invalid.")
+
+    settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    api = CivitaiAPI(
+        settings.get("api_key"),
+        mature_content=mature_content_enabled(settings)
+    )
+    model = api.get_model(model_id)
+    if not isinstance(model, dict) or model.get("id") != model_id:
+        raise ValueError("Civitai returned an unexpected model for this preview request.")
+
+    candidates = []
+    for version in model.get("modelVersions") or []:
+        if isinstance(version, dict):
+            candidates.extend(_civitai_preview_urls(version.get("images") or []))
+
+    return {"success": True, "previews": list(dict.fromkeys(candidates))[:30]}
+
+
 def search_civitai_models(
     query, cursor=None, model_type="LORA", filters=None
 ):
@@ -741,6 +767,7 @@ class LibraryHandler(SimpleHTTPRequestHandler):
         if route not in (
             "/add-character",
             "/search-models",
+            "/model-previews",
             "/content-preference",
             "/remove-character",
             "/restore-character",
@@ -775,6 +802,8 @@ class LibraryHandler(SimpleHTTPRequestHandler):
                     data.get("model_type", "LORA"),
                     data.get("filters")
                 )
+            elif route == "/model-previews":
+                result = get_civitai_model_previews(data.get("model_id"))
             elif route == "/remove-character":
                 result = remove_character(
                     data.get("anime", "").strip(),
