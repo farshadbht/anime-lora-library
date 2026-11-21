@@ -401,6 +401,21 @@ def create_model_archive(
             version_folder / "PageMetadata.json",
             {
                 "selected_version_on_page": selected_page_version == version_id,
+                "version_selector": (
+                    page_metadata.get("version_selector")
+                    if isinstance(page_metadata, dict)
+                    and selected_page_version == version_id else None
+                ),
+                "details_section": (
+                    page_metadata.get("details_section")
+                    if isinstance(page_metadata, dict)
+                    and selected_page_version == version_id else None
+                ),
+                "model_header": (
+                    page_metadata.get("model_header")
+                    if isinstance(page_metadata, dict)
+                    and selected_page_version == version_id else None
+                ),
                 "gallery_images": page_images,
                 "generation_panels": page_generation_panels,
                 "download_cards": [
