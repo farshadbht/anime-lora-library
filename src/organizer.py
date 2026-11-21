@@ -60,7 +60,7 @@ def _creator_summary(model_data):
 def _model_summary(model_data):
     """Create a convenient summary without discarding the complete API response."""
     fields = (
-        "id", "name", "type", " nsfw", "nsfwLevel", "description",
+        "id", "name", "type", "nsfw", "nsfwLevel", "description",
         "tags", "modelVersions", "mode", "allowNoCredit",
         "allowCommercialUse", "allowDerivatives", "allowDifferentLicenses",
         "license", "createdAt", "updatedAt", "publishedAt",
@@ -68,7 +68,6 @@ def _model_summary(model_data):
         "thumbsDownCount", "commentCount", "stats"
     )
     summary = _available_fields(model_data, fields)
-    summary.pop(" nsfw", None)
     summary["creator"] = _creator_summary(model_data)
     return summary
 
