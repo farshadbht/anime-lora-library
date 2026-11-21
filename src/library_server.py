@@ -80,6 +80,14 @@ def add_character(url, anime_name):
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     library = json.loads(LIBRARY_PATH.read_text(encoding="utf-8"))
 
+    # Missing settings retain the previous behavior: download/save everything.
+    download_settings = settings.get("download") or {}
+    download_options = {
+        "images": bool(download_settings.get("images", True)),
+        "model_files": bool(download_settings.get("model_files", True)),
+        "descriptions": bool(download_settings.get("descriptions", True))
+    }
+
     api = CivitaiAPI(settings.get("api_key"))
 
     print("\n" + "=" * 55)
@@ -118,7 +126,8 @@ def add_character(url, anime_name):
     root = create_model_archive(
         model,
         versions,
-        download_directory
+        download_directory,
+        save_descriptions=download_options["descriptions"]
     )
 
     all_results = []
@@ -134,7 +143,8 @@ def add_character(url, anime_name):
         results = download_version_assets(
             api,
             version,
-            version_folder
+            version_folder,
+            download_options=download_options
         )
         all_results.append(results)
 
@@ -186,6 +196,9 @@ def add_character(url, anime_name):
         "files": total_files,
         "images": total_images,
         "errors": total_errors,
+        "files_skipped": sum(item["files_skipped"] for item in all_results),
+        "images_skipped": sum(item["images_skipped"] for item in all_results),
+        "download_options": download_options,
         "character_page": str(character_page),
         "library_page": str(DOWNLOADS / "index.html")
     }
