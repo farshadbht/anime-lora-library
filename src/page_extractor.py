@@ -1,4 +1,3 @@
-import json
 import re
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse, parse_qs
@@ -127,14 +126,26 @@ def _extract_download_cards(soup, page_url):
             re.IGNORECASE
         )
 
+        format_match = re.search(
+            r"\b(?:fp16|fp32|bf16)\s+(?:SafeTensor|SafeTensors|Checkpoint|PickleTensor)\b",
+            card_text,
+            re.IGNORECASE
+        )
+        verification_time = container.find("time")
         cards.append({
             "version_id": version_id,
             "download_url": _absolute_url(href, page_url),
             "download_endpoint": href,
             "filename": filename_match.group(0).strip() if filename_match else None,
+            "format_display": format_match.group(0) if format_match else None,
             "size_display": size_match.group(0) if size_match else None,
-            "card_text": card_text,
-            "verified": bool(re.search(r"\bverified\b", card_text, re.IGNORECASE))
+            "verified": bool(re.search(r"\bverified\b", card_text, re.IGNORECASE)),
+            "verification_timestamp": (
+                verification_time.get("datetime")
+                or verification_time.get("dateTime")
+                if verification_time else None
+            ),
+            "card_text": card_text
         })
 
     return cards
@@ -239,10 +250,18 @@ def _extract_generation_panels(soup):
         def content_for(heading_node):
             if heading_node is None:
                 return None
-            candidate = heading_node.find_next("div")
-            if candidate is None:
-                return None
-            return _clean_text(candidate.get_text(" ", strip=True))
+            for ancestor in heading_node.parents:
+                if ancestor is card:
+                    break
+                sibling = ancestor.find_next_sibling()
+                if sibling is not None and sibling.name == "div":
+                    if sibling.has_attr("data-line-clamp") or (
+                        "break-words" in " ".join(sibling.get("class", []))
+                    ):
+                        value = _clean_text(sibling.get_text(" ", strip=True))
+                        value = re.sub(r"\s*(?:\.\.\.)?\s*Show more\s*$", "", value)
+                        return value
+            return None
 
         badges = {}
         for badge in card.select(".mantine-Badge-label"):
@@ -293,6 +312,55 @@ def _extract_details_section(soup):
     return None
 
 
+def _extract_icon_metrics(soup):
+    """Capture icon/count pairs without guessing what an unfamiliar icon means."""
+    metrics = []
+    seen = set()
+    first_gallery = soup.select_one('a[href*="/images/"]')
+    gallery_line = getattr(first_gallery, "sourceline", None)
+
+    for svg in soup.select("svg[class]"):
+        line = getattr(svg, "sourceline", None)
+        if gallery_line is not None and line is not None and line > gallery_line:
+            break
+
+        icon_classes = [
+            item for item in svg.get("class", [])
+            if item.startswith("tabler-icon-")
+        ]
+        if not icon_classes:
+            continue
+
+        value = None
+        context = None
+        for ancestor in svg.parents:
+            if getattr(ancestor, "name", None) not in ("div", "button", "a", "span"):
+                continue
+            candidate = _clean_text(ancestor.get_text(" ", strip=True))
+            if len(candidate) > 60:
+                continue
+            match = re.search(r"(?<!\w)(\d[\d,.]*(?:\.\d+)?\s*[KMB]?)\s*$", candidate, re.IGNORECASE)
+            if match:
+                value = match.group(1).strip()
+                context = candidate
+                break
+
+        if value is None:
+            continue
+
+        key = (tuple(icon_classes), value, context)
+        if key in seen:
+            continue
+        seen.add(key)
+        metrics.append({
+            "icon_class": icon_classes,
+            "value": value,
+            "context_text": context
+        })
+
+    return metrics
+
+
 def _extract_header(soup):
     title = None
     heading = soup.find("h1")
@@ -311,9 +379,18 @@ def _extract_header(soup):
             if label not in categories:
                 categories.append(label)
 
+    body_text = _clean_text(soup.get_text(" ", strip=True))
+    updated_match = re.search(
+        r"\bUpdated\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})",
+        body_text,
+        re.IGNORECASE
+    )
+
     return {
         "title": title,
-        "category_tags": categories
+        "category_tags": categories,
+        "updated_display": updated_match.group(1) if updated_match else None,
+        "icon_metrics_raw": _extract_icon_metrics(soup)
     }
 
 
