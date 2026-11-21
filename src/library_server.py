@@ -602,6 +602,17 @@ def validate_archive_folder(folder_name):
     return target
 
 
+def open_archive_folder(folder_name):
+    """Open one validated model archive in Windows File Explorer."""
+    target = validate_archive_folder(folder_name)
+
+    if not hasattr(os, "startfile"):
+        raise RuntimeError("Opening model folders is supported on Windows.")
+
+    os.startfile(str(target))
+    return {"success": True}
+
+
 def restore_character(folder_name, anime_name):
     """Restore an existing archive to an anime category without downloading."""
     if not anime_name or not anime_name.strip():
@@ -761,7 +772,8 @@ class LibraryHandler(SimpleHTTPRequestHandler):
             "/remove-character",
             "/restore-character",
             "/delete-character",
-            "/move-character"
+            "/move-character",
+            "/open-folder"
         ):
             self.send_error(404)
             return
@@ -773,7 +785,9 @@ class LibraryHandler(SimpleHTTPRequestHandler):
 
             data = json.loads(self.rfile.read(length).decode("utf-8"))
 
-            if route == "/add-character":
+            if route == "/open-folder":
+                result = open_archive_folder(data.get("folder", ""))
+            elif route == "/add-character":
                 result = add_character(
                     data.get("url", "").strip(),
                     data.get("anime", "").strip(),
