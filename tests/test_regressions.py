@@ -706,6 +706,12 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
             self.assertNotIn("__FRANCHISE_DATA__", page)
             self.assertNotIn("__CHARACTER_COUNT__", page)
             self.assertIn("inventoryPageSize = 48", page)
+            self.assertIn('id="civitai-sort-by"', page)
+            self.assertIn('<option value="relevance" selected>Relevance (Civitai order)</option>', page)
+            self.assertIn('<option value="downloads">Most Downloaded</option>', page)
+            self.assertNotIn('id="civitai-sort-direction"', page)
+            self.assertNotIn("civitaiSortDirection", page)
+            self.assertIn('sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))', page)
 
 
 if __name__ == "__main__":
