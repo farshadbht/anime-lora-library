@@ -115,11 +115,12 @@ def _extract_download_cards(soup, page_url):
                 break
 
         card_text = _clean_text(container.get_text(" ", strip=True))
-        filename_match = re.search(
-            r"[\w .()\-]+\.(?:safetensors|ckpt|pt|pth|bin|gguf)",
+        filename_candidates = re.findall(
+            r"[A-Za-z0-9_.()\-]+\.(?:safetensors|ckpt|pt|pth|bin|gguf)",
             card_text,
             re.IGNORECASE
         )
+        filename = filename_candidates[-1] if filename_candidates else None
         size_match = re.search(
             r"\b\d+(?:\.\d+)?\s*(?:KB|MB|GB|TB)\b",
             card_text,
@@ -136,7 +137,7 @@ def _extract_download_cards(soup, page_url):
             "version_id": version_id,
             "download_url": _absolute_url(href, page_url),
             "download_endpoint": href,
-            "filename": filename_match.group(0).strip() if filename_match else None,
+            "filename": filename,
             "format_display": format_match.group(0) if format_match else None,
             "size_display": size_match.group(0) if size_match else None,
             "verified": bool(re.search(r"\bverified\b", card_text, re.IGNORECASE)),
@@ -373,19 +374,15 @@ def _extract_details_section(soup):
 def _extract_icon_metrics(soup):
     """Capture icon/count pairs without guessing what an unfamiliar icon means."""
     metrics = []
-    seen = set()
-    first_gallery = soup.select_one('a[href*="/images/"]')
-    gallery_line = getattr(first_gallery, "sourceline", None)
+    seen_icons = set()
 
     for svg in soup.select("svg[class]"):
-        line = getattr(svg, "sourceline", None)
-        if gallery_line is not None and line is not None and line > gallery_line:
-            break
-
         icon_classes = [
             item for item in svg.get("class", [])
             if item.startswith("tabler-icon-")
         ]
+        if not icon_classes or any(item in seen_icons for item in icon_classes):
+            continue
         if not icon_classes:
             continue
 
@@ -406,10 +403,7 @@ def _extract_icon_metrics(soup):
         if value is None:
             continue
 
-        key = (tuple(icon_classes), value, context)
-        if key in seen:
-            continue
-        seen.add(key)
+        seen_icons.update(icon_classes)
         metrics.append({
             "icon_class": icon_classes,
             "value": value,
