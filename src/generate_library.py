@@ -1491,16 +1491,7 @@ function renderCivitaiResults() {{
         if(!previewCandidates.length&&model.preview) previewCandidates.push(model.preview);
         let previewIndex=0;
         let modelFallbackRequested=false;
-        if(previewCandidates.length) preview.src=previewCandidates[0];
-        preview.onerror=async()=>{{
-            previewIndex++;
-            if(previewIndex<previewCandidates.length) {{
-                preview.src=previewCandidates[previewIndex];
-                return;
-            }}
-
-            // Search-index previews can be incomplete. Ask the local server
-            // for canonical images from this model's full Civitai API record.
+        const loadCanonicalPreviews=async()=>{{
             if(!modelFallbackRequested&&model.id) {{
                 modelFallbackRequested=true;
                 try {{
@@ -1515,13 +1506,28 @@ function renderCivitaiResults() {{
                     console.warn("Could not retrieve canonical Civitai previews for model",model.id,error);
                 }}
             }}
-
             if(previewIndex<previewCandidates.length) {{
                 preview.src=previewCandidates[previewIndex];
             }} else {{
                 preview.style.visibility="hidden";
             }}
         }};
+        preview.onerror=async()=>{{
+            previewIndex++;
+            if(previewIndex<previewCandidates.length) {{
+                preview.src=previewCandidates[previewIndex];
+                return;
+            }}
+            await loadCanonicalPreviews();
+        }};
+        // Some website-search hits contain no image records at all. In that
+        // case there is no image request to fail, so fetch canonical previews
+        // immediately instead of waiting for an onerror event that cannot occur.
+        if(previewCandidates.length) {{
+            preview.src=previewCandidates[0];
+        }} else {{
+            loadCanonicalPreviews();
+        }}
         const details=document.createElement("div"),link=document.createElement("a");
         link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
         details.appendChild(link);
