@@ -1199,7 +1199,7 @@ footer {{
                 <option value="relevance" selected>Relevance</option>
                 <option value="downloads">Most Downloaded</option>
                 <option value="likes">Most Liked</option>
-                <option value="buzz">Most Buzz</option>
+                <option value="buzz">Most Buzz (tipped amount)</option>
                 <option value="comments">Most Discussed</option>
                 <option value="favorites">Most Collected</option>
                 <option value="imagesCount">Most Images</option>
