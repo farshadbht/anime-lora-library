@@ -133,7 +133,7 @@ def _write_trigger_words(version_folder, version):
         )
 
 
-def create_model_archive(model_data, versions, download_directory):
+def create_model_archive(model_data, versions, download_directory, save_descriptions=True):
     """Create the complete directory structure and useful metadata summaries."""
     model_name = safe_name(model_data.get("name", "Unnamed Model"))
     root = Path(download_directory) / model_name
@@ -143,10 +143,11 @@ def create_model_archive(model_data, versions, download_directory):
     save_json(root / "Metadata.json", model_data)
     save_json(root / "ModelInfo.json", _model_summary(model_data))
 
-    save_description(
-        root / "Description",
-        model_data.get("description", "")
-    )
+    if save_descriptions:
+        save_description(
+            root / "Description",
+            model_data.get("description", "")
+        )
 
     version_records = []
 
@@ -171,10 +172,11 @@ def create_model_archive(model_data, versions, download_directory):
             _version_summary(version)
         )
 
-        save_description(
-            version_folder / "Description",
-            version.get("description") or ""
-        )
+        if save_descriptions:
+            save_description(
+                version_folder / "Description",
+                version.get("description") or ""
+            )
         _write_trigger_words(version_folder, version)
 
         # Save a separate manifest of model files and their metadata.
