@@ -556,7 +556,9 @@ def extract_model_page(model_url, model_data=None, versions=None):
 
     selector = result.get("version_selector") or {}
     displayed_version_id = selector.get("selected_version_id_from_url")
-    if displayed_version_id is None:
+    if displayed_version_id is None and result.get("fetch_status") == "success":
+        # Without an explicit URL version, Civitai normally displays the
+        # newest version first. Do not infer this when page retrieval failed.
         displayed_version_id = next(
             (
                 item.get("id") for item in (versions or [])
