@@ -382,6 +382,16 @@ def _extract_icon_metrics(soup):
     seen_icons = set()
 
     for svg in soup.select("svg[class]"):
+        # Ignore reaction controls inside individual gallery cards. Their
+        # counts are intentionally not part of this archive.
+        inside_gallery_card = any(
+            ancestor.find("a", href=re.compile(r"/images/\d+")) is not None
+            for ancestor in list(svg.parents)[:6]
+            if getattr(ancestor, "name", None) in ("div", "article", "section")
+        )
+        if inside_gallery_card:
+            continue
+
         icon_classes = [
             item for item in svg.get("class", [])
             if item.startswith("tabler-icon-")
