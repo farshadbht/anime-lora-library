@@ -167,6 +167,7 @@ def generate():
     manage_data = json.dumps([
         {
             "anime": anime["name"],
+            "type": franchise_types.get(anime["name"].casefold(), "Other"),
             "characters": [
                 {"name": character["name"], "folder": character["folder"]}
                 for character in anime.get("characters", [])
@@ -176,7 +177,7 @@ def generate():
     ], ensure_ascii=False).replace("<", "\\u003c")
 
     manage_anime_options = "".join(
-        f'<option value="{escape(anime["name"], quote=True)}">{escape(anime["name"])}</option>'
+        f'<option value="{escape(anime["name"], quote=True)}">{escape(anime["name"])} · {escape(franchise_types.get(anime["name"].casefold(), "Other"))}</option>'
         for anime in data.get("anime", [])
         if anime.get("characters")
     )
@@ -228,7 +229,7 @@ def generate():
 
     restore_anime_options = "".join(
         f'<option value="{escape(anime["name"], quote=True)}">'
-        f'{escape(anime["name"])}</option>'
+        f'{escape(anime["name"])} · {escape(franchise_types.get(anime["name"].casefold(), "Other"))}</option>'
         for anime in data.get("anime", [])
     )
 
@@ -551,7 +552,7 @@ const moveStatus = document.getElementById("move-status");
 manageData.forEach(item => {
     const option = document.createElement("option");
     option.value = item.anime;
-    option.textContent = item.anime;
+    option.textContent = item.anime + " · " + (item.type || "Other");
     moveSourceSelect.appendChild(option);
 });
 
@@ -751,7 +752,7 @@ deleteForeverButton.addEventListener("click", async () => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>My Franchise LoRA Library</title>
+<title>My LoRA Library</title>
 
 <style>
 * {{
@@ -1271,7 +1272,7 @@ footer {{
     </section>
 
 <div class="library-stats">
-        {len(anime_sections)} anime · {total_characters} characters
+        {len(anime_sections)} franchises · {total_characters} characters
     </div>
 
     <input
@@ -1637,7 +1638,7 @@ function filterLibrary() {{
     print("\n======================================")
     print("       LIBRARY GENERATED")
     print("======================================")
-    print("Anime:", len(anime_sections))
+    print("Franchises:", len(anime_sections))
     print("Characters:", total_characters)
     print("Output:", output.resolve())
     print("======================================")
