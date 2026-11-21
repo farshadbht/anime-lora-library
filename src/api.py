@@ -155,6 +155,7 @@ class CivitaiAPI:
             version_id = version.get("id")
 
             if not version_id:
+                failures.append("A model version entry did not contain an ID.")
                 continue
 
             print(
@@ -164,6 +165,16 @@ class CivitaiAPI:
 
             try:
                 full_version = self.get_version(version_id)
+                returned_id = full_version.get("id")
+                returned_model_id = full_version.get("modelId")
+                if returned_id != version_id:
+                    raise ValueError(
+                        f"Civitai returned version {returned_id} when {version_id} was requested."
+                    )
+                if returned_model_id is not None and returned_model_id != model_data.get("id"):
+                    raise ValueError(
+                        f"Version {version_id} belongs to a different model."
+                    )
                 complete_versions.append(full_version)
 
             except requests.RequestException as error:
