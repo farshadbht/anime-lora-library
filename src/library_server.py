@@ -218,7 +218,7 @@ def search_civitai_models(
         limit=100,
         model_type=model_type,
         base_models=filters.get("base_models"),
-        include_nsfw=filters.get("include_nsfw") is True,
+        include_nsfw=filters.get("include_nsfw", True) is True,
         supports_generation=filters.get("supports_generation") is True
     )
 
