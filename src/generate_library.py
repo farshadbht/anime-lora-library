@@ -1490,11 +1490,37 @@ function renderCivitaiResults() {{
         const previewCandidates=Array.isArray(model.previews)?model.previews.filter(url=>typeof url==="string"&&url):[];
         if(!previewCandidates.length&&model.preview) previewCandidates.push(model.preview);
         let previewIndex=0;
+        let modelFallbackRequested=false;
         if(previewCandidates.length) preview.src=previewCandidates[0];
-        preview.onerror=()=>{{
+        preview.onerror=async()=>{{
             previewIndex++;
-            if(previewIndex<previewCandidates.length) preview.src=previewCandidates[previewIndex];
-            else preview.style.visibility="hidden";
+            if(previewIndex<previewCandidates.length) {{
+                preview.src=previewCandidates[previewIndex];
+                return;
+            }}
+
+            // Search-index previews can be incomplete. Ask the local server
+            // for canonical images from this model's full Civitai API record.
+            if(!modelFallbackRequested&&model.id) {{
+                modelFallbackRequested=true;
+                try {{
+                    const response=await fetch("/model-previews",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{model_id:model.id}})}});
+                    const payload=await response.json();
+                    if(response.ok&&Array.isArray(payload.previews)) {{
+                        payload.previews.forEach(url=>{{
+                            if(typeof url==="string"&&url&&!previewCandidates.includes(url)) previewCandidates.push(url);
+                        }});
+                    }}
+                }} catch(error) {{
+                    console.warn("Could not retrieve canonical Civitai previews for model",model.id,error);
+                }}
+            }}
+
+            if(previewIndex<previewCandidates.length) {{
+                preview.src=previewCandidates[previewIndex];
+            }} else {{
+                preview.style.visibility="hidden";
+            }}
         }};
         const details=document.createElement("div"),link=document.createElement("a");
         link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
