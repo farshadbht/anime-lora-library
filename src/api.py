@@ -80,6 +80,9 @@ class CivitaiAPI:
 
         if isinstance(base_models, str):
             base_models = [part.strip() for part in base_models.split(",")]
+        elif base_models is not None and not isinstance(base_models, (list, tuple)):
+            raise ValueError("Base models must be text or a list of names.")
+
         if base_models:
             cleaned_base_models = [
                 str(value).strip() for value in base_models
