@@ -1225,7 +1225,8 @@ footer {{
             <summary>Advanced Civitai filters</summary>
             <div class="online-search-advanced-fields">
                 <input type="text" id="civitai-base-models" placeholder="Base model(s), comma-separated (e.g. Illustrious, Pony, SDXL 1.0)" aria-label="Base model filter">
-                <label><input type="checkbox" id="civitai-include-nsfw" checked> Include mature content</label>
+                <label><input type="checkbox" id="civitai-include-nsfw"> I am 18 or older and enable mature content</label>
+                <div id="mature-content-status" class="civitai-result-extra">Mature content is off by default. Enabling this setting switches Civitai requests to civitai.red.</div>
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
             </div>
         </details>
@@ -1308,6 +1309,40 @@ const loadMoreModelsButton=document.getElementById("load-more-models");
 const civitaiSortSelect=document.getElementById("civitai-sort-by");
 const civitaiSortDirection=document.getElementById("civitai-sort-direction");
 let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={};
+const matureContentToggle=document.getElementById("civitai-include-nsfw");
+const matureContentStatus=document.getElementById("mature-content-status");
+
+async function loadContentPreference() {{
+    try {{
+        const response=await fetch("/app-settings");
+        const settings=await response.json();
+        if(!response.ok||!settings.success) throw new Error("Could not load content preferences.");
+        matureContentToggle.checked=settings.mature_content_enabled===true;
+        matureContentStatus.textContent=matureContentToggle.checked
+            ?"Mature content enabled. Civitai requests use civitai.red."
+            :"Mature content is off. Civitai requests use civitai.com.";
+    }} catch(error) {{matureContentStatus.textContent="Could not load mature-content preference: "+error.message}}
+}}
+
+matureContentToggle.addEventListener("change",async()=>{{
+    const enabled=matureContentToggle.checked;
+    matureContentToggle.disabled=true;
+    matureContentStatus.textContent=enabled?"Saving 18+ confirmation and enabling mature content...":"Disabling mature content...";
+    try {{
+        const response=await fetch("/content-preference",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{enabled,age_confirmed:enabled}})}});
+        const result=await response.json();
+        if(!response.ok||!result.success) throw new Error(result.error||"Could not save content preference.");
+        matureContentStatus.textContent=enabled
+            ?"Mature content enabled. New searches use civitai.red."
+            :"Mature content disabled. New searches use civitai.com.";
+        civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
+        civitaiSearchStatus.textContent="Content preference changed. Search again to refresh results.";
+    }} catch(error) {{
+        matureContentToggle.checked=!enabled;
+        matureContentStatus.textContent="ERROR: "+error.message;
+    }} finally {{matureContentToggle.disabled=false}}
+}});
+loadContentPreference();
 
 const metricLabels={{
     downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"comments",
@@ -1380,7 +1415,6 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
     const baseModelText=document.getElementById("civitai-base-models").value.trim();
     civitaiCurrentFilters={{
         base_models:baseModelText,
-        include_nsfw:document.getElementById("civitai-include-nsfw").checked,
         supports_generation:document.getElementById("civitai-supports-generation").checked
     }};
     civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
