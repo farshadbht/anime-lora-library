@@ -122,11 +122,11 @@ def download_version_assets(api, version, version_folder, download_options=None)
 
     version_name = version.get("name", "Version")
     version_id = version.get("id")
-    print(f"\\n========== {version_name} ==========")
+    print(f"\n========== {version_name} ==========")
 
     if options["model_files"]:
         files_folder.mkdir(parents=True, exist_ok=True)
-        print("\\nDownloading model files...")
+        print("\nDownloading model files...")
         model_name = version_folder.parents[1].name
         model_filename = safe_filename(model_name)
         extension_counts = {}
@@ -177,11 +177,11 @@ def download_version_assets(api, version, version_folder, download_options=None)
                 results["errors"].append(message)
     else:
         results["files_skipped"] = len(version.get("files", []))
-        print("\\nModel file downloads disabled in settings.")
+        print("\nModel file downloads disabled in settings.")
 
     if options["images"]:
         images_folder.mkdir(parents=True, exist_ok=True)
-        print("\\nDownloading gallery images...")
+        print("\nDownloading gallery images...")
 
         # Never send the authenticated API session to the image CDN.
         image_session = requests.Session()
@@ -216,9 +216,9 @@ def download_version_assets(api, version, version_folder, download_options=None)
             image_session.close()
     else:
         results["images_skipped"] = len(version.get("images", []))
-        print("\\nImage downloads disabled in settings.")
+        print("\nImage downloads disabled in settings.")
 
-    print(f"\\nVersion {version_id} download summary:")
+    print(f"\nVersion {version_id} download summary:")
     print(f"Files downloaded: {len(results['files_downloaded'])}")
     print(f"Images downloaded: {len(results['images_downloaded'])}")
     print(f"Files skipped: {results['files_skipped']}")
