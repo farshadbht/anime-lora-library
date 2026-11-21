@@ -1307,7 +1307,7 @@ footer {{
 
     <section class="online-search-panel">
         <h2>Search Civitai Models</h2>
-        <p class="online-search-description">Civitai finds relevant matches first. Reorder those matches by the available statistics below; changing the ranking never runs a separate popularity search. Sorting applies to results loaded so far, and “Load more” expands the pool. Most Buzz uses Civitai's tipped-amount metric.</p>
+        <p class="online-search-description">Every search starts with Civitai's relevance-ranked results. You can then reorder that same result set by downloads, likes, Buzz, discussion, collections, image count, rating, or date. Sorting applies to results loaded so far; “Load more” expands the pool. Most Buzz uses Civitai's tipped-amount metric.</p>
         <form class="online-search-controls" id="civitai-search-form">
             <input type="search" id="civitai-search-query" placeholder="Search Civitai models..." required>
             <select id="civitai-model-type" aria-label="Model type">
@@ -1315,8 +1315,8 @@ footer {{
                 <option value="Checkpoint">Checkpoint</option><option value="TextualInversion">Textual Inversion</option><option value="Controlnet">ControlNet</option>
             </select>
             <select id="civitai-sort-by" aria-label="Rank search results">
-                <option value="relevance">Relevance (Civitai order)</option>
-                <option value="downloads" selected>Most Downloaded</option>
+                <option value="relevance" selected>Relevance (Civitai order)</option>
+                <option value="downloads">Most Downloaded</option>
                 <option value="likes">Most Liked</option>
                 <option value="buzz">Most Buzz (tipped amount)</option>
                 <option value="comments">Most Discussed</option>
@@ -1325,10 +1325,6 @@ footer {{
                 <option value="rating">Highest Rated</option>
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
-            </select>
-            <select id="civitai-sort-direction" aria-label="Metric sort direction">
-                <option value="desc" selected>Highest first</option>
-                <option value="asc">Lowest first</option>
             </select>
             <button type="submit" id="civitai-search-button">Search Civitai</button>
         </form>
@@ -1511,7 +1507,6 @@ const civitaiSearchStatus=document.getElementById("civitai-search-status");
 const civitaiResultsElement=document.getElementById("civitai-search-results");
 const loadMoreModelsButton=document.getElementById("load-more-models");
 const civitaiSortSelect=document.getElementById("civitai-sort-by");
-const civitaiSortDirection=document.getElementById("civitai-sort-direction");
 let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={{}};
 const matureContentToggle=document.getElementById("civitai-include-nsfw");
 const matureContentStatus=document.getElementById("mature-content-status");
@@ -1555,13 +1550,12 @@ const metricLabels={{
 
 function renderCivitaiResults() {{
     const sortBy=civitaiSortSelect.value;
-    const direction=civitaiSortDirection.value==="asc"?1:-1;
     const sorted=[...civitaiSearchItems];
     if(sortBy==="newest"||sortBy==="oldest") {{
         const dateDirection=sortBy==="newest"?-1:1;
         sorted.sort((a,b)=>(((Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0))*dateDirection)||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }} else if(sortBy!=="relevance") {{
-        sorted.sort((a,b)=>((Number(a[sortBy]??0)-Number(b[sortBy]??0))*direction)||((a._civitaiRank??0)-(b._civitaiRank??0)));
+        sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }}
     civitaiResultsElement.replaceChildren();
     sorted.forEach(async model=>{{
@@ -1662,9 +1656,7 @@ function renderCivitaiResults() {{
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
     const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
-    const directionLabel=(sortBy==="newest"||sortBy==="oldest"||sortBy==="relevance")?"":(direction===1?" · lowest first":" · highest first");
-    civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevant results · sorted by "+labels[sortBy]+directionLabel+".";
-    civitaiSortDirection.disabled=sortBy==="newest"||sortBy==="oldest"||sortBy==="relevance";
+    civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevant results · sorted by "+labels[sortBy]+".";
 }}
 
 async function requestCivitaiModels(cursor=null) {{
@@ -1706,7 +1698,6 @@ loadMoreModelsButton.addEventListener("click",async()=>{{
     finally {{loadMoreModelsButton.disabled=false}}
 }});
 civitaiSortSelect.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});
-civitaiSortDirection.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});
 
 function filterLibrary() {{
     const query = document.getElementById("search")
