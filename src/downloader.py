@@ -90,6 +90,20 @@ def download_file(
         partial.unlink()
         existing_size = 0
 
+    # Recover a transfer that finished writing but was interrupted before
+    # the .part file could be atomically renamed.
+    if (
+        existing_size
+        and expected_size is not None
+        and existing_size == expected_size
+    ):
+        if _existing_file_matches(partial, expected_size, expected_sha256):
+            partial.replace(destination)
+            print(f"Recovered completed partial download: {destination.name}")
+            return (destination, True) if return_status else destination
+        partial.unlink()
+        existing_size = 0
+
     headers = {}
     if existing_size:
         headers["Range"] = f"bytes={existing_size}-"
@@ -100,6 +114,20 @@ def download_file(
         stream=True,
         timeout=(30, 120)
     ) as response:
+        if response.status_code == 416 and existing_size:
+            content_range = response.headers.get("Content-Range", "")
+            match = re.match(r"bytes\s+\*/(\d+)$", content_range.strip(), re.I)
+            reported_total = int(match.group(1)) if match else None
+            if (
+                reported_total is not None
+                and reported_total == existing_size
+                and (expected_size is None or reported_total == expected_size)
+                and _existing_file_matches(partial, expected_size, expected_sha256)
+            ):
+                partial.replace(destination)
+                print(f"Recovered completed partial download: {destination.name}")
+                return (destination, True) if return_status else destination
+
         response.raise_for_status()
 
         if existing_size and response.status_code == 206:
