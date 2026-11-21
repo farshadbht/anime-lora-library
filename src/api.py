@@ -139,6 +139,122 @@ class CivitaiAPI:
         response.raise_for_status()
         return response.json()
 
+    def search_site_models(
+        self,
+        query,
+        offset=0,
+        limit=100,
+        model_type="LORA",
+        base_models=None,
+        supports_generation=False,
+        tag=None,
+        username=None
+    ):
+        """
+        Search through Civitai's own website-search route.
+
+        This is the same models_v9 Meilisearch index used by Civitai's model
+        search UI. The site proxy applies its own viewer, privacy, region and
+        browsing-level rules. Do not send the user's personal API key here.
+        """
+        query = str(query or "").strip()
+        if not query:
+            raise ValueError("Enter a search term.")
+        if len(query) > 200:
+            raise ValueError("Search terms must be 200 characters or fewer.")
+
+        try:
+            offset = int(offset or 0)
+        except (TypeError, ValueError):
+            raise ValueError("The search cursor is invalid.")
+        if offset < 0 or offset > 1000:
+            raise ValueError("The search cursor is outside Civitai's search window.")
+
+        limit = max(1, min(int(limit), 100))
+        if model_type and model_type != "All":
+            if model_type not in ("LORA", "Checkpoint", "TextualInversion", "Controlnet"):
+                raise ValueError("Unsupported model type.")
+
+        def quoted(value):
+            return json.dumps(str(value), ensure_ascii=False)
+
+        filters = []
+        if model_type and model_type != "All":
+            filters.append(f"type = {quoted(model_type)}")
+
+        if isinstance(base_models, str):
+            base_models = [part.strip() for part in base_models.split(",")]
+        elif base_models is not None and not isinstance(base_models, (list, tuple)):
+            raise ValueError("Base models must be text or a list of names.")
+
+        if base_models:
+            cleaned_base_models = [
+                str(value).strip() for value in base_models
+                if str(value).strip()
+            ]
+            if len(cleaned_base_models) > 20:
+                raise ValueError("Choose no more than 20 base models.")
+            if any(len(value) > 80 for value in cleaned_base_models):
+                raise ValueError("Base model names must be 80 characters or fewer.")
+            if cleaned_base_models:
+                values = ", ".join(quoted(value) for value in cleaned_base_models)
+                filters.append(f"versions.baseModel IN [{values}]")
+
+        if supports_generation:
+            filters.append("canGenerate = true")
+
+        for field, value in (("tags.name", tag), ("user.username", username)):
+            if value is not None:
+                value = str(value).strip()
+                if len(value) > 100:
+                    raise ValueError("Tag and creator filters must be 100 characters or fewer.")
+                if value:
+                    filters.append(f"{field} = {quoted(value)}")
+
+        payload = {
+            "q": query,
+            "limit": limit,
+            "offset": offset,
+            "attributesToRetrieve": [
+                "id", "name", "type", "createdAt", "lastVersionAt",
+                "lastVersionAtUnix", "publishedAt", "user", "version",
+                "versions", "metrics", "images", "tags",
+                "earlyAccessDeadline", "hasActivePaidAccess"
+            ]
+        }
+        if filters:
+            payload["filter"] = filters
+
+        site_root = self.base_url.rsplit("/api/v1", 1)[0].rstrip("/")
+        search_url = (
+            f"{site_root}/api/search/indexes/models_v9/search"
+        )
+
+        # The site-search route is anonymous-capable. Keep the account's
+        # personal Civitai API key out of this separate website-search request.
+        search_session = requests.Session()
+        search_session.headers.update({
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "CivitaiLoRADownloader/1.0",
+            "Origin": site_root,
+            "Referer": f"{site_root}/search/models"
+        })
+        try:
+            response = search_session.post(
+                search_url,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+        finally:
+            search_session.close()
+
+        if not isinstance(result, dict) or not isinstance(result.get("hits"), list):
+            raise RuntimeError("Civitai returned an unexpected website-search response.")
+        return result
+
     @staticmethod
     def _image_asset_key(url):
         """Normalize resized Civitai CDN URLs to their underlying asset ID."""
