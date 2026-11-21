@@ -168,6 +168,17 @@ def _model_summary(model_data):
     return summary
 
 
+def _image_asset_key(url):
+    """Match resized CDN URLs to their underlying Civitai image asset."""
+    value = str(url or "")
+    match = re.search(
+        r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+        value,
+        re.IGNORECASE
+    )
+    return match.group(1).lower() if match else value.split("?", 1)[0]
+
+
 def _file_summary(model_file):
     """Keep useful file details while retaining the raw response elsewhere."""
     summary = _available_fields(
@@ -263,7 +274,11 @@ def save_download_report(root, version_results, download_options, selected_versi
     return path
 
 
-def create_model_archive(model_data, versions, download_directory, save_descriptions=True, page_metadata=None):
+def create_model_archive(
+    model_data, versions, download_directory,
+    save_descriptions=True, page_metadata=None,
+    gallery_images_by_version=None
+):
     """Create the complete directory structure and useful metadata summaries."""
     model_name = safe_name(model_data.get("name", "Unnamed Model"))
     download_root = Path(download_directory)
@@ -371,6 +386,16 @@ def create_model_archive(model_data, versions, download_directory, save_descript
             page_generation_panels = page_metadata.get("generation_panels") or []
             page_download_cards = page_metadata.get("download_cards") or []
 
+        api_gallery_images = []
+        if isinstance(gallery_images_by_version, dict):
+            api_gallery_images = (
+                gallery_images_by_version.get(str(version_id)) or []
+            )
+        save_json(
+            version_folder / "GalleryImagesMetadata.json",
+            api_gallery_images
+        )
+
         save_json(
             version_folder / "PageMetadata.json",
             {
@@ -384,9 +409,25 @@ def create_model_archive(model_data, versions, download_directory, save_descript
             }
         )
 
+        api_images_by_key = {
+            _image_asset_key(item.get("url")): item
+            for item in api_gallery_images
+            if item.get("url")
+        }
+        page_images_by_key = {
+            _image_asset_key(item.get("url")): item
+            for item in page_images
+            if item.get("url")
+        }
+
         # Save each preview image's generation metadata separately.
         for index, image in enumerate(version.get("images", []), 1):
-            page_image = page_images[index - 1] if index <= len(page_images) else None
+            asset_key = _image_asset_key(image.get("url"))
+            api_image = api_images_by_key.get(asset_key)
+            page_image = page_images_by_key.get(asset_key)
+            if page_image is None and index <= len(page_images):
+                page_image = page_images[index - 1]
+
             image_data = {
                 "image_number": index,
                 "url": image.get("url"),
@@ -395,9 +436,16 @@ def create_model_archive(model_data, versions, download_directory, save_descript
                 "nsfw": image.get("nsfw"),
                 "nsfwLevel": image.get("nsfwLevel"),
                 "type": image.get("type"),
-                "meta": image.get("meta"),
-                "civitai_image_id": page_image.get("image_id") if page_image else None,
-                "page_gallery": page_image
+                "meta": image.get("meta") or (api_image or {}).get("meta"),
+                "civitai_image_id": (
+                    (api_image or {}).get("id")
+                    or (page_image or {}).get("image_id")
+                ),
+                "post_id": (api_image or {}).get("postId"),
+                "image_created_at": (api_image or {}).get("createdAt"),
+                "image_uploader": (api_image or {}).get("username"),
+                "page_gallery": page_image,
+                "api_gallery_metadata": api_image
             }
             save_json(
                 image_metadata_folder / f"image_{index:03d}.json",
