@@ -9,6 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from src.api import CivitaiAPI
+from src.library_server import _civitai_preview_url
 from src.downloader import (
     _model_file_destination,
     _session_for_model_download,
@@ -224,6 +225,28 @@ class CivitaiAPITests(unittest.TestCase):
         self.assertEqual(params["username"], "fluxis")
         self.assertEqual(params["fromPlatform"], "true")
         self.assertEqual(params["earlyAccess"], "true")
+
+
+class CivitaiPreviewURLTests(unittest.TestCase):
+    def test_search_image_uuid_becomes_cdn_preview_url(self):
+        image_uuid = "f548f446-9fc2-429f-a64f-77f96a3b2697"
+        self.assertEqual(
+            _civitai_preview_url({"url": image_uuid}),
+            "https://imagecache.civitai.com/"
+            f"xG1nkqKTMzGDvpLrqFT7WA/{image_uuid}/width=450"
+        )
+
+    def test_existing_full_image_url_is_preserved(self):
+        url = (
+            "https://imagecache.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/"
+            "f548f446-9fc2-429f-a64f-77f96a3b2697/width=450"
+        )
+        self.assertEqual(_civitai_preview_url({"url": url}), url)
+
+    def test_invalid_preview_values_are_ignored(self):
+        self.assertIsNone(_civitai_preview_url({"url": ""}))
+        self.assertIsNone(_civitai_preview_url({"url": "not-a-url-or-uuid"}))
+        self.assertIsNone(_civitai_preview_url(None))
 
 
 class URLAndMetadataTests(unittest.TestCase):
