@@ -444,11 +444,18 @@ def create_model_archive(
                 "meta": image.get("meta") or (api_image or {}).get("meta"),
                 "civitai_image_id": (
                     (api_image or {}).get("id")
+                    or image.get("id")
                     or (page_image or {}).get("image_id")
                 ),
-                "post_id": (api_image or {}).get("postId"),
-                "image_created_at": (api_image or {}).get("createdAt"),
-                "image_uploader": (api_image or {}).get("username"),
+                "post_id": (
+                    (api_image or {}).get("postId") or image.get("postId")
+                ),
+                "image_created_at": (
+                    (api_image or {}).get("createdAt") or image.get("createdAt")
+                ),
+                "image_uploader": (
+                    (api_image or {}).get("username") or image.get("username")
+                ),
                 "page_gallery": page_image,
                 "api_gallery_metadata": api_image
             }
