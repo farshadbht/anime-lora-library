@@ -1,0 +1,899 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "name": "86 - Eighty Six",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "A Certain Magical Index",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Attack on Titan",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Berserk",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Bleach",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Blue Lock",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Chainsaw Man",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Code Geass",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Cowboy Bebop",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dandadan",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Demon Slayer",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Death Note",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Delicious in Dungeon",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dragon Ball",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dr. Stone",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Evangelion",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Fate Series",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Frieren: Beyond Journey's End",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Fullmetal Alchemist",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Gintama",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Gundam",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Haikyu!!",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Hellsing",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Hunter x Hunter",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Jujutsu Kaisen",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Kaguya-sama: Love Is War",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "K-On!",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Kill la Kill",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Konosuba",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Made in Abyss",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Mob Psycho 100",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Monogatari Series",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "My Hero Academia",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Naruto",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "No Game No Life",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "One Piece",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "One Punch Man",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Overlord",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Re:Zero",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Sailor Moon",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Solo Leveling",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Spy x Family",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Steins;Gate",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Sword Art Online",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Apothecary Diaries",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Eminence in Shadow",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Tokyo Ghoul",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Violet Evergarden",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Vinland Saga",
+      "type": "Anime / Manga",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Warcraft",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "World of Warcraft",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Elder Scrolls",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Skyrim",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Witcher",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Cyberpunk",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Cyberpunk 2077",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Baldur's Gate",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Baldur's Gate 3",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Mass Effect",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dragon Age",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Final Fantasy",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Kingdom Hearts",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Genshin Impact",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Honkai: Star Rail",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Honkai Impact 3rd",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Wuthering Waves",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "League of Legends",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Valorant",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Overwatch",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Diablo",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "StarCraft",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dota 2",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Elden Ring",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dark Souls",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Bloodborne",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Sekiro",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Monster Hunter",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Resident Evil",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Silent Hill",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Metal Gear",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "NieR",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Persona",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Fire Emblem",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Legend of Zelda",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Pokémon",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Minecraft",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Red Dead Redemption",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Grand Theft Auto",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Hades",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Hollow Knight",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Last of Us",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "God of War",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Tomb Raider",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Street Fighter",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Mortal Kombat",
+      "type": "Video Game",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Star Wars",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Lord of the Rings",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Hobbit",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Harry Potter",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dune",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Avatar",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Matrix",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Blade Runner",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Alien",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Predator",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Pirates of the Caribbean",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Jurassic Park",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Marvel Cinematic Universe",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "DC Extended Universe",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "John Wick",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Mad Max",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Transformers",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "How to Train Your Dragon",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Shrek",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Frozen",
+      "type": "Movie",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Game of Thrones",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "House of the Dragon",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Breaking Bad",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Better Call Saul",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Supernatural",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Boys",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Witcher (TV)",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Stranger Things",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Walking Dead",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Doctor Who",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Sherlock",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The X-Files",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Arcane",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Avatar: The Last Airbender",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Legend of Korra",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Mandalorian",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Wednesday",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Office",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Sandman",
+      "type": "TV Series",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Shadow Slave",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "A Song of Ice and Fire",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Stormlight Archive",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Wheel of Time",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Kingkiller Chronicle",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Lord of the Rings (Books)",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Harry Potter (Books)",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Dune (Books)",
+      "type": "Book / Novel",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Marvel",
+      "type": "Comic",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "DC Comics",
+      "type": "Comic",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Invincible",
+      "type": "Comic",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "The Walking Dead (Comics)",
+      "type": "Comic",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Spawn",
+      "type": "Comic",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Original Character",
+      "type": "Original Work",
+      "aliases": [],
+      "parent": null
+    },
+    {
+      "name": "Original Creation",
+      "type": "Original Work",
+      "aliases": [],
+      "parent": null
+    }
+  ]
+}
