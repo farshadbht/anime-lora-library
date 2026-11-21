@@ -1487,7 +1487,7 @@ function renderCivitaiResults() {{
         sorted.sort((a,b)=>((Number(a[sortBy]??0)-Number(b[sortBy]??0))*direction)||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }}
     civitaiResultsElement.replaceChildren();
-    sorted.forEach(model=>{{
+    sorted.forEach(async model=>{{
         const row=document.createElement("div");row.className="civitai-result";
         const previewStrip=document.createElement("div");previewStrip.className="civitai-result-previews";
         const previewCandidates=Array.isArray(model.previews)?model.previews.filter(url=>typeof url==="string"&&url):[];
