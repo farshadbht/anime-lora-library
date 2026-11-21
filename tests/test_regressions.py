@@ -715,6 +715,11 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
         self.assertNotIn('id="civitai-sort-direction"', source)
         self.assertNotIn("civitaiSortDirection", source)
         self.assertIn('sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))', source)
+        # Result rows must reserve their sorted DOM position before asynchronous preview loading.
+        reserve_position = source.index('civitaiResultsElement.appendChild(row);')
+        preview_loading = source.index('if(previewCandidates.length<3) await loadCanonicalPreviews();')
+        self.assertLess(reserve_position, preview_loading)
+        self.assertNotIn('civitaiResultsElement.appendChild(row);', source[preview_loading:])
 
 
 if __name__ == "__main__":
