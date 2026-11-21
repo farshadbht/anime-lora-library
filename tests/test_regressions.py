@@ -688,9 +688,11 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
                 }]
             }), encoding="utf-8")
 
-            with patch.object(library_generator, "ROOT", downloads), \\
-                 patch.object(library_generator, "CONFIG", config), \\
-                 patch.object(library_generator, "PROJECT_ROOT", root):
+            with (
+                patch.object(library_generator, "ROOT", downloads),
+                patch.object(library_generator, "CONFIG", config),
+                patch.object(library_generator, "PROJECT_ROOT", root)
+            ):
                 library_generator.generate()
 
             page = (downloads / "manage.html").read_text(encoding="utf-8")
