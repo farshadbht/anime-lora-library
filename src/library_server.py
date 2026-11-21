@@ -205,15 +205,21 @@ def add_character(url, anime_name):
 
 
 
-def search_civitai_models(query, cursor=None, model_type="LORA"):
-    """Return relevance-ranked Civitai matches with fields needed by the UI."""
+def search_civitai_models(
+    query, cursor=None, model_type="LORA", filters=None
+):
+    """Return Civitai relevance-ranked matches using supported browse filters."""
+    filters = filters if isinstance(filters, dict) else {}
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     api = CivitaiAPI(settings.get("api_key"))
     payload = api.search_models(
         query=query,
         cursor=cursor,
         limit=100,
-        model_type=model_type
+        model_type=model_type,
+        base_models=filters.get("base_models"),
+        include_nsfw=filters.get("include_nsfw") is True,
+        supports_generation=filters.get("supports_generation") is True
     )
 
     items = []
@@ -568,7 +574,8 @@ class LibraryHandler(SimpleHTTPRequestHandler):
                 result = search_civitai_models(
                     data.get("query", "").strip(),
                     data.get("cursor"),
-                    data.get("model_type", "LORA")
+                    data.get("model_type", "LORA"),
+                    data.get("filters")
                 )
             elif route == "/remove-character":
                 result = remove_character(
