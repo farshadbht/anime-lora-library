@@ -10,11 +10,26 @@ from tqdm import tqdm
 CHUNK_SIZE = 1024 * 1024
 
 
-def safe_filename(name):
-    """Make a filename safe for Windows."""
+def safe_filename(name, max_length=180):
+    """Make a filename safe for Windows, including reserved device names."""
     name = re.sub(r'[<>:"/\\|?*]', "_", str(name))
     name = name.strip().rstrip(". ")
-    return name or "unnamed_file"
+    if not name:
+        name = "unnamed_file"
+
+    stem = Path(name).stem
+    if stem.upper() in {
+        "CON", "PRN", "AUX", "NUL",
+        *(f"COM{index}" for index in range(1, 10)),
+        *(f"LPT{index}" for index in range(1, 10))
+    }:
+        name = f"_{name}"
+
+    if len(name) > max_length:
+        suffix = Path(name).suffix
+        stem = name[:-len(suffix)] if suffix else name
+        name = stem[:max(1, max_length - len(suffix))] + suffix
+    return name
 
 
 def get_image_filename(url, index):
