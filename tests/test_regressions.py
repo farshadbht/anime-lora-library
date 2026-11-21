@@ -707,14 +707,26 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
             self.assertNotIn("__CHARACTER_COUNT__", page)
             self.assertIn("inventoryPageSize = 48", page)
 
-    def test_civitai_search_defaults_to_relevance_without_direction_control(self):
+    def test_civitai_search_keeps_relevance_as_fixed_search_order(self):
         source = Path(library_generator.__file__).read_text(encoding="utf-8")
         self.assertIn('id="civitai-sort-by"', source)
-        self.assertIn('<option value="relevance" selected>Relevance (Civitai order)</option>', source)
+        self.assertNotIn('<option value="relevance"', source)
+        self.assertIn('<option value="" selected>Keep Civitai relevance order</option>', source)
         self.assertIn('<option value="downloads">Most Downloaded</option>', source)
         self.assertNotIn('id="civitai-sort-direction"', source)
         self.assertNotIn("civitaiSortDirection", source)
-        self.assertIn('sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))', source)
+        # Sorting is outside the search form, so it cannot submit a new search.
+        search_form = source.split('<form class="online-search-controls" id="civitai-search-form">', 1)[1].split("</form>", 1)[0]
+        self.assertNotIn('id="civitai-sort-by"', search_form)
+        self.assertIn('civitaiSortSelect.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});', source)
+        sort_start = source.index('civitaiSortSelect.addEventListener("change"')
+        sort_end = source.index(");", sort_start) + 2
+        sort_handler = source[sort_start:sort_end]
+        self.assertNotIn('requestCivitaiModels', sort_handler)
+        self.assertIn('else if(sortBy) {{', source)
+        self.assertIn('civitaiSearchItems.push(...(result.items||[]).map', source)
+        self.assertEqual(source.count('requestCivitaiModels()'), 1)
+        self.assertIn('requestCivitaiModels(civitaiNextCursor)', source)
         # Result rows must reserve their sorted DOM position before asynchronous preview loading.
         reserve_position = source.index('civitaiResultsElement.appendChild(row);')
         preview_loading = source.index('if(previewCandidates.length<3) await loadCanonicalPreviews();')

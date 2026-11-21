@@ -1314,8 +1314,12 @@ footer {{
                 <option value="LORA" selected>LoRA</option><option value="All">All model types</option>
                 <option value="Checkpoint">Checkpoint</option><option value="TextualInversion">Textual Inversion</option><option value="Controlnet">ControlNet</option>
             </select>
-            <select id="civitai-sort-by" aria-label="Rank search results">
-                <option value="relevance" selected>Relevance (Civitai order)</option>
+            <button type="submit" id="civitai-search-button">Search Civitai</button>
+        </form>
+        <div class="online-search-sort-control">
+            <label for="civitai-sort-by">Sort the loaded results (Civitai relevance is the default)</label>
+            <select id="civitai-sort-by" aria-label="Sort loaded results">
+                <option value="" selected>Keep Civitai relevance order</option>
                 <option value="downloads">Most Downloaded</option>
                 <option value="likes">Most Liked</option>
                 <option value="buzz">Most Buzz (tipped amount)</option>
@@ -1326,8 +1330,7 @@ footer {{
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
             </select>
-            <button type="submit" id="civitai-search-button">Search Civitai</button>
-        </form>
+        </div>
         <div class="online-search-content-preference">
             <label><input type="checkbox" id="civitai-include-nsfw"> I confirm I am 18 or older and want to view mature content</label>
             <div id="mature-content-status" class="civitai-result-extra">Mature content is off by default. Enabling this setting switches Civitai requests to civitai.red.</div>
@@ -1554,7 +1557,7 @@ function renderCivitaiResults() {{
     if(sortBy==="newest"||sortBy==="oldest") {{
         const dateDirection=sortBy==="newest"?-1:1;
         sorted.sort((a,b)=>(((Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0))*dateDirection)||((a._civitaiRank??0)-(b._civitaiRank??0)));
-    }} else if(sortBy!=="relevance") {{
+    }} else if(sortBy) {{
         sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))||((a._civitaiRank??0)-(b._civitaiRank??0)));
     }}
     civitaiResultsElement.replaceChildren();
@@ -1659,7 +1662,8 @@ function renderCivitaiResults() {{
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
     const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
-    civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevant results · sorted by "+labels[sortBy]+".";
+    civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevance-ranked results · "+(sortBy?("sorted by "+labels[sortBy]):"showing original Civitai relevance order")+".";
+
 }}
 
 async function requestCivitaiModels(cursor=null) {{
