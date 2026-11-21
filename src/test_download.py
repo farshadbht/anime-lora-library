@@ -16,13 +16,19 @@ def main():
         "descriptions": bool(download_settings.get("descriptions", True))
     }
 
-    api = CivitaiAPI(settings.get("api_key"))
+    preferences = settings.get("content_preferences") or {}
+    mature_enabled = preferences.get("mature_content_enabled") is True
+    api = CivitaiAPI(
+        settings.get("api_key"),
+        mature_content=mature_enabled
+    )
 
     url = input("\nPaste the Civitai model URL: ").strip()
     result = api.get_model_from_url(url)
 
     model = result["model"]
     versions = result["versions"]
+    selected_version_id = result.get("selected_version_id")
 
     root = create_model_archive(
         model,
@@ -51,7 +57,8 @@ def main():
         all_results.append(results)
 
     download_report = save_download_report(
-        root, all_results, download_options
+        root, all_results, download_options,
+        selected_version_id=selected_version_id
     )
 
     total_files = sum(len(item["files_downloaded"]) for item in all_results)
@@ -65,6 +72,8 @@ def main():
     print("===================================")
     print("Model:", model.get("name"))
     print("Versions:", len(versions))
+    print("Selected URL version:", selected_version_id)
+    print("All model versions included:", True)
     print("Files downloaded:", total_files)
     print("Images downloaded:", total_images)
     print("Files skipped:", total_files_skipped)
