@@ -10,9 +10,18 @@ from bs4 import BeautifulSoup
 def safe_name(name, max_length=100):
     """Convert a model/version name into a safe Windows folder name."""
     name = re.sub(r'[<>:"/\\|?*]', "_", str(name))
-    name = re.sub(r"\s+", " ", name).strip()
-    name = name.rstrip(". ")
-    return (name or "Unnamed")[:max_length]
+    name = re.sub(r"\s+", " ", name).strip().rstrip(". ")
+    if not name:
+        name = "Unnamed"
+
+    if name.split(".", 1)[0].upper() in {
+        "CON", "PRN", "AUX", "NUL",
+        *(f"COM{index}" for index in range(1, 10)),
+        *(f"LPT{index}" for index in range(1, 10))
+    }:
+        name = f"_{name}"
+
+    return name[:max_length]
 
 
 def save_json(path, data):
