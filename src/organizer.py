@@ -136,7 +136,41 @@ def _write_trigger_words(version_folder, version):
 def create_model_archive(model_data, versions, download_directory, save_descriptions=True):
     """Create the complete directory structure and useful metadata summaries."""
     model_name = safe_name(model_data.get("name", "Unnamed Model"))
-    root = Path(download_directory) / model_name
+    download_root = Path(download_directory)
+    root = download_root / model_name
+    model_id = model_data.get("id")
+
+    if root.exists():
+        existing_metadata_path = root / "Metadata.json"
+        existing_model_id = None
+        if existing_metadata_path.is_file():
+            try:
+                existing_model_id = json.loads(
+                    existing_metadata_path.read_text(encoding="utf-8")
+                ).get("id")
+            except (OSError, json.JSONDecodeError):
+                existing_model_id = None
+
+        if existing_model_id != model_id:
+            suffix = f" [{model_id}]" if model_id is not None else " [Civitai model]"
+            root = download_root / f"{model_name}{suffix}"
+
+            if root.exists():
+                collision_metadata = root / "Metadata.json"
+                collision_id = None
+                if collision_metadata.is_file():
+                    try:
+                        collision_id = json.loads(
+                            collision_metadata.read_text(encoding="utf-8")
+                        ).get("id")
+                    except (OSError, json.JSONDecodeError):
+                        collision_id = None
+                if collision_id != model_id:
+                    raise FileExistsError(
+                        f"Cannot safely choose an archive folder for model "
+                        f"{model_id}; {root} already exists."
+                    )
+
     root.mkdir(parents=True, exist_ok=True)
 
     # Preserve the complete, unmodified Civitai model response.
