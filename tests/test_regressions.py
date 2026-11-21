@@ -24,6 +24,7 @@ from src.organizer import (
     save_description,
     save_download_report,
 )
+from src.offline_site import generate_offline_site
 from src.page_extractor import (
     _extract_download_cards,
     _extract_generation_panels,
@@ -565,6 +566,58 @@ class PageExtractionTests(unittest.TestCase):
         self.assertEqual(len(panels), 1)
         self.assertEqual(panels[0]["positive_prompt"], "positive prompt words")
         self.assertEqual(panels[0]["negative_prompt"], "negative prompt words")
+
+
+class OpenModelFolderTests(unittest.TestCase):
+    def test_model_page_renders_open_folder_button_for_its_archive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "Fixture Character"
+            root.mkdir()
+            (root / "Metadata.json").write_text(json.dumps({
+                "name": "Fixture Character",
+                "creator": {"username": "fixture"}
+            }), encoding="utf-8")
+            (root / "ArchiveIndex.json").write_text(
+                json.dumps({"versions": []}), encoding="utf-8"
+            )
+
+            page_path = generate_offline_site(root)
+            page = page_path.read_text(encoding="utf-8")
+
+            self.assertIn('class="open-folder-button"', page)
+            self.assertIn("Open LoRA Folder", page)
+            self.assertIn('const MODEL_FOLDER = "Fixture Character";', page)
+            self.assertIn('fetch("/open-folder"', page)
+            self.assertIn('href="../index.html"', page)
+
+    def test_open_archive_folder_opens_only_a_validated_archive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            downloads = Path(temporary)
+            archive = downloads / "Fixture Character"
+            archive.mkdir()
+            (archive / "Metadata.json").write_text("{}", encoding="utf-8")
+            (archive / "ArchiveIndex.json").write_text("{}", encoding="utf-8")
+
+            with patch.object(library_server_module, "DOWNLOADS", downloads):
+                with patch.object(library_server_module.os, "startfile", create=True) as startfile:
+                    result = library_server_module.open_archive_folder("Fixture Character")
+
+            self.assertEqual(result, {"success": True})
+            startfile.assert_called_once_with(str(archive.resolve()))
+
+    def test_open_archive_folder_rejects_paths_outside_downloads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            downloads = Path(temporary) / "downloads"
+            downloads.mkdir()
+            outside = Path(temporary) / "outside"
+            outside.mkdir()
+
+            with patch.object(library_server_module, "DOWNLOADS", downloads):
+                with patch.object(library_server_module.os, "startfile", create=True) as startfile:
+                    with self.assertRaisesRegex(ValueError, "Invalid archive folder name"):
+                        library_server_module.open_archive_folder("../outside")
+
+            startfile.assert_not_called()
 
 
 class ArchiveTests(unittest.TestCase):

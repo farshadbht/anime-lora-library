@@ -216,6 +216,9 @@ def generate_offline_site(model_folder):
             f'src="{html.escape(creator_avatar, quote=True)}">'
         )
 
+    # Keep the folder name as data for the local folder-opening endpoint.
+    model_folder_name = json.dumps(root.name)
+
     # Generate complete HTML page
     page = f"""<!DOCTYPE html>
 <html lang="en">
@@ -246,9 +249,18 @@ header {{
     border-bottom: 1px solid #383842;
 }}
 
-.back-button {{
-    display: inline-block;
+.header-actions {{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 18px;
+}}
+
+.back-button,
+.open-folder-button {{
+    display: inline-block;
+    margin-bottom: 0;
     padding: 9px 15px;
     background: #49316b;
     color: white;
@@ -258,8 +270,24 @@ header {{
     transition: background 0.2s;
 }}
 
-.back-button:hover {{
+.back-button:hover,
+.open-folder-button:hover {{
     background: #68449a;
+}}
+
+.open-folder-button {{
+    padding: 9px 15px;
+    background: #347e75;
+    color: white;
+    border: 0;
+    border-radius: 7px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}}
+
+.open-folder-button:hover {{
+    background: #41988d;
 }}
 
 h1 {{
@@ -476,7 +504,11 @@ footer {{
 
 <header>
 
-    <a class="back-button" href="../index.html">&#8592; Back to Library</a>
+    <div class="header-actions">
+        <a class="back-button" href="../index.html">&#8592; Back to Library</a>
+        <button class="open-folder-button" type="button"
+                onclick="openModelFolder(this)">Open LoRA Folder</button>
+    </div>
 
     <h1>{html.escape(model_name)}</h1>
 
@@ -529,6 +561,34 @@ footer {{
 </footer>
 
 <script>
+
+const MODEL_FOLDER = {model_folder_name};
+
+async function openModelFolder(button) {{
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Opening...";
+
+    try {{
+        const response = await fetch("/open-folder", {{
+            method: "POST",
+            headers: {{ "Content-Type": "application/json" }},
+            body: JSON.stringify({{ folder: MODEL_FOLDER }})
+        }});
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {{
+            throw new Error(result.error || "Could not open the model folder.");
+        }}
+
+        button.textContent = "Folder Opened";
+    }} catch (error) {{
+        alert(error.message || "Could not open the model folder.");
+        button.textContent = originalText;
+    }} finally {{
+        button.disabled = false;
+    }}
+}}
 
 async function copyText(text, button) {{
 
