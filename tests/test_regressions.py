@@ -287,6 +287,7 @@ class CivitaiSearchServerTests(unittest.TestCase):
         self.assertEqual(call["cursor"], "opaque-current-cursor")
         self.assertEqual(call["query"], "Character")
         self.assertEqual(call["model_type"], "LORA")
+        self.assertEqual(call["limit"], 20)
         self.assertEqual(call["base_models"], ["Pony", "SDXL"])
         self.assertFalse(call["include_nsfw"])
         self.assertTrue(call["supports_generation"])
