@@ -126,6 +126,7 @@ def add_character(url, anime_name):
     result = api.get_model_from_url(url)
     model = result["model"]
     versions = result["versions"]
+    selected_version_id = result.get("selected_version_id")
 
     model_id = model.get("id")
     model_name = model.get("name", "Unknown Model")
@@ -180,7 +181,8 @@ def add_character(url, anime_name):
         all_results.append(results)
 
     download_report = save_download_report(
-        root, all_results, download_options
+        root, all_results, download_options,
+        selected_version_id=selected_version_id
     )
 
     # Generate the character's offline page, including its back button.
@@ -228,6 +230,8 @@ def add_character(url, anime_name):
         "model": model_name,
         "anime": anime_entry["name"],
         "versions": len(versions),
+        "selected_version_id": selected_version_id,
+        "all_model_versions_included": True,
         "files": total_files,
         "images": total_images,
         "errors": total_errors,
