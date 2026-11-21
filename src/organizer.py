@@ -70,6 +70,86 @@ def _creator_summary(model_data):
     )
 
 
+def _description_analysis(description):
+    """Extract common training and usage facts from a model description."""
+    soup = BeautifulSoup(description or "", "html.parser")
+    paragraphs = [
+        re.sub(r"\s+", " ", item.get_text(" ", strip=True)).strip()
+        for item in soup.find_all(["p", "li"])
+    ]
+    full_text = "\n".join(item for item in paragraphs if item)
+
+    result = {
+        "paragraphs": [item for item in paragraphs if item],
+        "trigger_phrase": None,
+        "identity_tags": [],
+        "canon_outfit_tags": [],
+        "recommended_weight": None,
+        "training": {}
+    }
+
+    trigger = re.search(r"\bTrigger\s*:\s*(.+)", full_text, re.IGNORECASE)
+    if trigger:
+        result["trigger_phrase"] = trigger.group(1).strip().rstrip(".")
+
+    for label, key in (
+        ("Identity tags", "identity_tags"),
+        ("Canon outfit", "canon_outfit_tags")
+    ):
+        match = re.search(
+            rf"\b{re.escape(label)}\b[^:]*:\s*(.+)",
+            full_text,
+            re.IGNORECASE
+        )
+        if match:
+            result[key] = [
+                item.strip()
+                for item in re.split(r",\s*", match.group(1).strip().rstrip("."))
+                if item.strip()
+            ]
+
+    weight = re.search(
+        r"Recommended weight\s*:\s*([0-9.]+)\s*(?:to|-|–)\s*([0-9.]+)"
+        r"(?:\s*\(([0-9.]+)\s*default\))?",
+        full_text,
+        re.IGNORECASE
+    )
+    if weight:
+        result["recommended_weight"] = {
+            "minimum": float(weight.group(1)),
+            "maximum": float(weight.group(2)),
+            "default": float(weight.group(3)) if weight.group(3) else None
+        }
+
+    training = result["training"]
+    images = re.search(
+        r"Trained on\s+(\d+)\s+[^.]*?\((\d+)\s+epochs?,\s*(\d+)\s+steps?\)",
+        full_text,
+        re.IGNORECASE
+    )
+    if images:
+        training.update({
+            "image_count": int(images.group(1)),
+            "epochs": int(images.group(2)),
+            "steps": int(images.group(3))
+        })
+
+    caption = re.search(r"\bwith\s+([^.(]*captions?)", full_text, re.IGNORECASE)
+    if caption:
+        training["captioning"] = caption.group(1).strip()
+
+    trained_model = re.search(
+        r"Trained on\s+([A-Za-z0-9_.-]+)\s*\(([^)]+)\)",
+        full_text,
+        re.IGNORECASE
+    )
+    if trained_model:
+        training["training_model"] = trained_model.group(1)
+        training["training_model_family"] = trained_model.group(2)
+
+    return result
+
+
 def _model_summary(model_data):
     """Create a convenient summary without discarding the complete API response."""
     fields = (
@@ -82,6 +162,9 @@ def _model_summary(model_data):
     )
     summary = _available_fields(model_data, fields)
     summary["creator"] = _creator_summary(model_data)
+    summary["description_analysis"] = _description_analysis(
+        model_data.get("description", "")
+    )
     return summary
 
 
