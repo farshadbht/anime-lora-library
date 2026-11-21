@@ -3,6 +3,7 @@ import json
 from api import CivitaiAPI
 from organizer import create_model_archive, safe_name, save_download_report
 from downloader import download_version_assets
+from page_extractor import extract_model_page
 
 
 def main():
@@ -29,12 +30,19 @@ def main():
     model = result["model"]
     versions = result["versions"]
     selected_version_id = result.get("selected_version_id")
+    page_metadata = extract_model_page(
+        url, model_data=model, versions=versions
+    )
+    print("Civitai webpage extraction:", page_metadata.get("fetch_status"))
+    if page_metadata.get("error"):
+        print("Webpage extraction note:", page_metadata["error"])
 
     root = create_model_archive(
         model,
         versions,
         settings.get("download_directory", "downloads"),
-        save_descriptions=download_options["descriptions"]
+        save_descriptions=download_options["descriptions"],
+        page_metadata=page_metadata
     )
 
     all_results = []
