@@ -305,17 +305,31 @@ class CivitaiAPI:
         gallery_image_errors = {}
         for version in versions:
             version_id = version.get("id")
+            expected_urls = [
+                image.get("url")
+                for image in version.get("images", [])
+                if isinstance(image, dict) and image.get("url")
+            ]
             try:
-                gallery_images_by_version[str(version_id)] = (
-                    self.get_version_images(
-                        version_id,
-                        expected_image_urls=[
-                            image.get("url")
-                            for image in version.get("images", [])
-                            if isinstance(image, dict)
-                        ]
-                    )
+                found_images = self.get_version_images(
+                    version_id,
+                    expected_image_urls=expected_urls
                 )
+                gallery_images_by_version[str(version_id)] = found_images
+
+                expected_keys = {
+                    self._image_asset_key(url) for url in expected_urls
+                }
+                found_keys = {
+                    self._image_asset_key(item.get("url"))
+                    for item in found_images if item.get("url")
+                }
+                missing_count = len(expected_keys - found_keys)
+                if missing_count:
+                    gallery_image_errors[str(version_id)] = (
+                        f"Image IDs were unavailable for {missing_count} of "
+                        f"{len(expected_keys)} preview images."
+                    )
             except requests.RequestException as error:
                 gallery_images_by_version[str(version_id)] = []
                 gallery_image_errors[str(version_id)] = str(error)
