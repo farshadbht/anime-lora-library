@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from src.api import CivitaiAPI
 from src.library_server import _civitai_preview_url, _civitai_preview_urls
+from src.franchise_catalog import add_franchise, find_franchise, load_catalog
 from src.downloader import (
     _model_file_destination,
     _session_for_model_download,
@@ -592,6 +593,67 @@ class ArchiveTests(unittest.TestCase):
             )
             self.assertEqual(report["files_already_present"], 1)
             self.assertEqual(report["status"], "completed")
+
+
+class FranchiseCatalogTests(unittest.TestCase):
+    def test_seed_and_legacy_categories_merge_without_losing_custom_entries(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            seed = root / "seed.json"
+            catalog = root / "catalog.json"
+            seed.write_text(json.dumps({
+                "entries": [
+                    {"name": "One Piece", "type": "Anime / Manga", "aliases": []},
+                    {"name": "Warcraft", "type": "Video Game", "aliases": []}
+                ]
+            }), encoding="utf-8")
+            catalog.write_text(json.dumps({
+                "version": 1,
+                "entries": [{
+                    "name": "My Custom Universe",
+                    "type": "Original Work",
+                    "aliases": ["MCU Local"],
+                    "custom": True
+                }]
+            }), encoding="utf-8")
+
+            entries = load_catalog(
+                catalog, seed, legacy_names=["Old Anime Category"]
+            )
+
+            self.assertIsNotNone(find_franchise(entries, "one piece"))
+            self.assertEqual(find_franchise(entries, "Warcraft")["type"], "Video Game")
+            self.assertEqual(find_franchise(entries, "Old Anime Category")["type"], "Anime / Manga")
+            self.assertEqual(find_franchise(entries, "MCU Local")["name"], "My Custom Universe")
+            self.assertEqual(find_franchise(entries, "My Custom Universe")["type"], "Original Work")
+
+    def test_custom_franchise_is_saved_and_duplicate_names_are_case_insensitive(self):
+        with tempfile.TemporaryDirectory() as folder:
+            catalog = Path(folder) / "catalog.json"
+            created = add_franchise(catalog, "My New Game", "Video Game")
+            duplicate = add_franchise(catalog, " my new GAME ", "Movie")
+
+            self.assertEqual(created["type"], "Video Game")
+            self.assertEqual(duplicate["name"], "My New Game")
+            self.assertEqual(duplicate["type"], "Video Game")
+            persisted = json.loads(catalog.read_text(encoding="utf-8"))
+            self.assertEqual(len(persisted["entries"]), 1)
+
+    def test_unknown_franchise_requires_a_valid_type(self):
+        with tempfile.TemporaryDirectory() as folder:
+            catalog = Path(folder) / "catalog.json"
+            with self.assertRaisesRegex(ValueError, "valid franchise type"):
+                add_franchise(catalog, "Unlisted World", "Not a category")
+
+    def test_catalog_search_matches_aliases(self):
+        with tempfile.TemporaryDirectory() as folder:
+            catalog = Path(folder) / "catalog.json"
+            add_franchise(catalog, "World of Warcraft", "Video Game")
+            payload = json.loads(catalog.read_text(encoding="utf-8"))
+            payload["entries"][0]["aliases"] = ["WoW"]
+            catalog.write_text(json.dumps(payload), encoding="utf-8")
+            entries = load_catalog(catalog)
+            self.assertEqual(find_franchise(entries, "wow")["name"], "World of Warcraft")
 
 
 if __name__ == "__main__":
