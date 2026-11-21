@@ -487,4 +487,17 @@ def extract_model_page(model_url, model_data=None, versions=None):
         if isinstance(item, dict) and item.get("id") is not None
     ]
 
+    selector = result.get("version_selector") or {}
+    displayed_version_id = selector.get("selected_version_id_from_url")
+    if displayed_version_id is None:
+        displayed_version_id = next(
+            (
+                item.get("id") for item in (versions or [])
+                if isinstance(item, dict) and item.get("id") is not None
+            ),
+            None
+        )
+    selector["displayed_version_id"] = displayed_version_id
+    result["version_selector"] = selector
+
     return result
