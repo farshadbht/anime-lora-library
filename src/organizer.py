@@ -134,7 +134,7 @@ def _write_trigger_words(version_folder, version):
         )
 
 
-def save_download_report(root, version_results, download_options):
+def save_download_report(root, version_results, download_options, selected_version_id=None):
     """Persist the outcome of every version's asset download in the archive."""
     records = []
     for item in version_results:
@@ -152,6 +152,8 @@ def save_download_report(root, version_results, download_options):
     report = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "download_options": download_options,
+        "selected_version_id_from_url": selected_version_id,
+        "all_model_versions_included": True,
         "version_count": len(records),
         "files_downloaded": sum(len(item["files_downloaded"]) for item in records),
         "images_downloaded": sum(len(item["images_downloaded"]) for item in records),
