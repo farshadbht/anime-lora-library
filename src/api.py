@@ -139,9 +139,38 @@ class CivitaiAPI:
         response.raise_for_status()
         return response.json()
 
-    def get_version_images(self, version_id, limit=200, max_pages=20):
-        """Retrieve image IDs and metadata for a specific model version."""
+    @staticmethod
+    def _image_asset_key(url):
+        """Normalize resized Civitai CDN URLs to their underlying asset ID."""
+        value = str(url or "")
+        match = re.search(
+            r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+            value,
+            re.IGNORECASE
+        )
+        if match:
+            return match.group(1).lower()
+        return urlparse(value).path
+
+    def get_version_images(
+        self, version_id, expected_image_urls=None, limit=200, max_pages=5
+    ):
+        """
+        Find image IDs for the version's own preview images.
+
+        The public images endpoint can also return community generations using
+        this version, so only records matching the version preview URLs are kept.
+        """
+        expected_keys = {
+            self._image_asset_key(url)
+            for url in (expected_image_urls or [])
+            if url
+        }
+        if not expected_keys:
+            return []
+
         images = []
+        found_keys = set()
         seen_ids = set()
         cursor = None
         seen_cursors = set()
@@ -164,11 +193,16 @@ class CivitaiAPI:
             payload = response.json()
 
             for item in payload.get("items", []):
+                asset_key = self._image_asset_key(item.get("url"))
+                if asset_key not in expected_keys:
+                    continue
+
                 image_id = item.get("id")
                 if image_id is not None and image_id in seen_ids:
                     continue
                 if image_id is not None:
                     seen_ids.add(image_id)
+                found_keys.add(asset_key)
 
                 # Deliberately omit reaction statistics; they are not part
                 # of this archive's requested image metadata.
@@ -181,6 +215,9 @@ class CivitaiAPI:
                     )
                     if key in item
                 })
+
+            if expected_keys.issubset(found_keys):
+                break
 
             metadata = payload.get("metadata") or {}
             next_cursor = metadata.get("nextCursor")
@@ -270,7 +307,14 @@ class CivitaiAPI:
             version_id = version.get("id")
             try:
                 gallery_images_by_version[str(version_id)] = (
-                    self.get_version_images(version_id)
+                    self.get_version_images(
+                        version_id,
+                        expected_image_urls=[
+                            image.get("url")
+                            for image in version.get("images", [])
+                            if isinstance(image, dict)
+                        ]
+                    )
                 )
             except requests.RequestException as error:
                 gallery_images_by_version[str(version_id)] = []
