@@ -204,6 +204,49 @@ def add_character(url, anime_name):
     }
 
 
+
+def search_civitai_models(query, cursor=None, model_type="LORA"):
+    """Return relevance-ranked Civitai matches with fields needed by the UI."""
+    settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    api = CivitaiAPI(settings.get("api_key"))
+    payload = api.search_models(
+        query=query,
+        cursor=cursor,
+        limit=100,
+        model_type=model_type
+    )
+
+    items = []
+    for model in payload.get("items", []):
+        versions = model.get("modelVersions") or []
+        latest = versions[0] if versions else {}
+        images = latest.get("images") or []
+        creator = model.get("creator") or {}
+        stats = model.get("stats") or {}
+
+        items.append({
+            "id": model.get("id"),
+            "name": model.get("name") or "Unknown model",
+            "type": model.get("type") or "Unknown",
+            "creator": creator.get("username") or "Unknown",
+            "downloads": int(stats.get("downloadCount") or 0),
+            "rating": stats.get("rating"),
+            "url": f"https://civitai.com/models/{model.get('id')}",
+            "preview": images[0].get("url") if images else None,
+            "tags": model.get("tags") or [],
+            "updatedAt": model.get("updatedAt")
+        })
+
+    metadata = payload.get("metadata") or {}
+    return {
+        "success": True,
+        "items": items,
+        "nextCursor": metadata.get("nextCursor"),
+        "totalItems": metadata.get("totalItems")
+    }
+
+
+
 def remove_character(anime_name, folder_name):
     """Remove a character from the library without deleting its archive."""
     if not anime_name or not folder_name:
@@ -485,6 +528,7 @@ class LibraryHandler(SimpleHTTPRequestHandler):
 
         if route not in (
             "/add-character",
+            "/search-models",
             "/remove-character",
             "/restore-character",
             "/delete-character",
@@ -504,6 +548,12 @@ class LibraryHandler(SimpleHTTPRequestHandler):
                 result = add_character(
                     data.get("url", "").strip(),
                     data.get("anime", "").strip()
+                )
+            elif route == "/search-models":
+                result = search_civitai_models(
+                    data.get("query", "").strip(),
+                    data.get("cursor"),
+                    data.get("model_type", "LORA")
                 )
             elif route == "/remove-character":
                 result = remove_character(
