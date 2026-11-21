@@ -101,6 +101,9 @@ def _extract_download_cards(soup, page_url):
             continue
 
         version_id = int(match.group(1))
+        query = parse_qs(urlparse(href).query)
+        file_values = query.get("fileId") or []
+        file_id = _safe_int(file_values[0]) if file_values else None
         if (version_id, href) in seen:
             continue
         seen.add((version_id, href))
@@ -133,14 +136,33 @@ def _extract_download_cards(soup, page_url):
             re.IGNORECASE
         )
         verification_time = container.find("time")
+        verification_match = re.search(
+            r"\b(Not\s+verified|Unverified|Verified|Pending)\b",
+            card_text,
+            re.IGNORECASE
+        )
+        variants_match = re.search(
+            r"\b(\d+)\s+variants?\s+available\b",
+            card_text,
+            re.IGNORECASE
+        )
+        verification_status = (
+            verification_match.group(1) if verification_match else None
+        )
         cards.append({
             "version_id": version_id,
+            "file_id": file_id,
             "download_url": _absolute_url(href, page_url),
             "download_endpoint": href,
             "filename": filename,
             "format_display": format_match.group(0) if format_match else None,
             "size_display": size_match.group(0) if size_match else None,
-            "verified": bool(re.search(r"\bverified\b", card_text, re.IGNORECASE)),
+            "variant_count": int(variants_match.group(1)) if variants_match else None,
+            "verification_status": verification_status,
+            "verified": (
+                verification_status.casefold() == "verified"
+                if verification_status else None
+            ),
             "verification_timestamp": (
                 verification_time.get("datetime")
                 or verification_time.get("dateTime")
