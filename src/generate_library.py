@@ -836,8 +836,10 @@ main {{
 @media(max-width:650px) {{.online-search-advanced-fields {{grid-template-columns:1fr}}}}
 #civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
 #civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
-.civitai-result {{display:grid;grid-template-columns:220px minmax(0,1fr) 172px;gap:16px;align-items:center;padding:12px;background:#1b1b23;border:1px solid #343440;border-radius:6px}}
-.civitai-result img {{width:220px;height:270px;object-fit:contain;border-radius:5px;background:#17171d}}
+.civitai-result {{display:grid;grid-template-columns:420px minmax(0,1fr) 172px;gap:16px;align-items:center;padding:12px;background:#1b1b23;border:1px solid #343440;border-radius:6px}}
+.civitai-result-previews {{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}}
+.civitai-result-previews img {{display:block;width:100%;height:190px;object-fit:contain;border-radius:5px;background:#17171d;min-width:0}}
+.civitai-result-previews img[hidden] {{display:none}}
 .civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:13px;text-decoration:none}}
 .civitai-result-name:hover {{text-decoration:underline}}
 .civitai-result-meta {{color:#999;font-size:11px;margin-top:6px}}
@@ -852,8 +854,9 @@ main {{
 .civitai-result-action.primary:hover {{background:#8059b5}}
 #load-more-models {{display:none;margin-top:10px}}
 @media(max-width:850px) {{.online-search-controls {{grid-template-columns:1fr 1fr}}}}
-@media(max-width:760px) {{.civitai-result {{grid-template-columns:170px minmax(0,1fr)}}.civitai-result img {{width:170px;height:215px}}.civitai-result-actions {{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center}}.civitai-result-downloads {{width:100%;text-align:left}}}}
-@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:120px minmax(0,1fr);gap:10px}}.civitai-result img {{width:120px;height:160px}}.civitai-result-actions {{grid-column:1 / -1;flex-direction:row;flex-wrap:wrap}}.civitai-result-downloads {{width:auto;margin:0 auto 0 0;text-align:left}}.civitai-result-action {{flex:1 1 130px}}}}
+@media(max-width:1000px) {{.civitai-result {{grid-template-columns:minmax(0,360px) minmax(0,1fr)}}.civitai-result-previews img {{height:170px}}.civitai-result-actions {{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center}}.civitai-result-downloads {{width:100%;text-align:left}}}}
+@media(max-width:760px) {{.civitai-result {{grid-template-columns:minmax(0,1fr)}}.civitai-result-previews img {{height:180px}}.civitai-result-actions {{grid-column:1;flex-direction:row;flex-wrap:wrap;align-items:center}}}}
+@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{gap:10px}}.civitai-result-previews {{gap:4px}}.civitai-result-previews img {{height:135px}}.civitai-result-actions {{grid-column:1;flex-direction:row;flex-wrap:wrap}}.civitai-result-downloads {{width:auto;margin:0 auto 0 0;text-align:left}}.civitai-result-action {{flex:1 1 130px}}}}
 .library-stats {{
     color: #999;
     font-size: 11px;
@@ -1486,47 +1489,45 @@ function renderCivitaiResults() {{
     civitaiResultsElement.replaceChildren();
     sorted.forEach(model=>{{
         const row=document.createElement("div");row.className="civitai-result";
-        const preview=document.createElement("img");preview.alt="";preview.loading="lazy";
+        const previewStrip=document.createElement("div");previewStrip.className="civitai-result-previews";
         const previewCandidates=Array.isArray(model.previews)?model.previews.filter(url=>typeof url==="string"&&url):[];
         if(!previewCandidates.length&&model.preview) previewCandidates.push(model.preview);
-        let previewIndex=0;
-        let modelFallbackRequested=false;
+        let canonicalPreviewsRequested=false;
         const loadCanonicalPreviews=async()=>{{
-            if(!modelFallbackRequested&&model.id) {{
-                modelFallbackRequested=true;
-                try {{
-                    const response=await fetch("/model-previews",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{model_id:model.id}})}});
-                    const payload=await response.json();
-                    if(response.ok&&Array.isArray(payload.previews)) {{
-                        payload.previews.forEach(url=>{{
-                            if(typeof url==="string"&&url&&!previewCandidates.includes(url)) previewCandidates.push(url);
-                        }});
-                    }}
-                }} catch(error) {{
-                    console.warn("Could not retrieve canonical Civitai previews for model",model.id,error);
+            if(canonicalPreviewsRequested||!model.id) return;
+            canonicalPreviewsRequested=true;
+            try {{
+                const response=await fetch("/model-previews",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{model_id:model.id}})}});
+                const payload=await response.json();
+                if(response.ok&&Array.isArray(payload.previews)) {{
+                    payload.previews.forEach(url=>{{
+                        if(typeof url==="string"&&url&&!previewCandidates.includes(url)) previewCandidates.push(url);
+                    }});
                 }}
-            }}
-            if(previewIndex<previewCandidates.length) {{
-                preview.src=previewCandidates[previewIndex];
-            }} else {{
-                preview.style.visibility="hidden";
+            }} catch(error) {{
+                console.warn("Could not retrieve canonical Civitai previews for model",model.id,error);
             }}
         }};
-        preview.onerror=async()=>{{
-            previewIndex++;
-            if(previewIndex<previewCandidates.length) {{
-                preview.src=previewCandidates[previewIndex];
-                return;
-            }}
-            await loadCanonicalPreviews();
-        }};
-        // Some website-search hits contain no image records at all. In that
-        // case there is no image request to fail, so fetch canonical previews
-        // immediately instead of waiting for an onerror event that cannot occur.
-        if(previewCandidates.length) {{
-            preview.src=previewCandidates[0];
-        }} else {{
-            loadCanonicalPreviews();
+        // Search-index records sometimes contain fewer than three images, or none.
+        // Top them up from the model's canonical version images before rendering.
+        if(previewCandidates.length<3) await loadCanonicalPreviews();
+        for(let slot=0;slot<3;slot++) {{
+            const preview=document.createElement("img");preview.alt="";preview.loading="lazy";
+            let candidateIndex=slot;
+            const tryNextPreview=()=>{{
+                if(candidateIndex<previewCandidates.length) {{
+                    const candidate=previewCandidates[candidateIndex];
+                    candidateIndex+=3;
+                    preview.hidden=false;
+                    preview.src=candidate;
+                }} else {{
+                    preview.hidden=true;
+                }}
+            }};
+            preview.onerror=tryNextPreview;
+            if(slot<previewCandidates.length) tryNextPreview();
+            else preview.hidden=true;
+            previewStrip.appendChild(preview);
         }}
         const details=document.createElement("div"),link=document.createElement("a");
         link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
@@ -1580,7 +1581,7 @@ function renderCivitaiResults() {{
         const moreButton=document.createElement("button");moreButton.type="button";moreButton.className="civitai-result-action primary";moreButton.textContent="More info on Civitai";
         moreButton.addEventListener("click",()=>window.open(model.url,"_blank","noopener,noreferrer"));
         actions.append(copyButton,moreButton);
-        row.append(preview,details,actions);civitaiResultsElement.appendChild(row);
+        row.append(previewStrip,details,actions);civitaiResultsElement.appendChild(row);
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
     const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
