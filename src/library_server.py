@@ -295,6 +295,19 @@ def _civitai_preview_url(image):
     return None
 
 
+def _civitai_preview_urls(images):
+    """Collect distinct usable preview URLs so the UI can fall back on image errors."""
+    if not isinstance(images, list):
+        return []
+
+    urls = []
+    for image in images:
+        url = _civitai_preview_url(image)
+        if url and url not in urls:
+            urls.append(url)
+    return urls
+
+
 def search_civitai_models(
     query, cursor=None, model_type="LORA", filters=None
 ):
@@ -356,14 +369,8 @@ def search_civitai_models(
         ]
         model_id = hit.get("id")
         username = user.get("username") or "Unknown"
-        preview = next(
-            (
-                preview_url
-                for image in images
-                if (preview_url := _civitai_preview_url(image))
-            ),
-            None
-        )
+        preview_candidates = _civitai_preview_urls(images)
+        preview = preview_candidates[0] if preview_candidates else None
 
         items.append({
             "id": model_id,
@@ -394,6 +401,7 @@ def search_civitai_models(
             ),
             "url": f"{site_root}/models/{model_id}",
             "preview": preview,
+            "previews": preview_candidates,
             "tags": [tag for tag in tags if isinstance(tag, str) and tag],
             "updatedAt": hit.get("lastVersionAt")
         })
