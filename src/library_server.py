@@ -21,11 +21,14 @@ from downloader import download_version_assets
 from page_extractor import extract_model_page
 from offline_site import generate_offline_site
 from generate_library import generate
+from franchise_catalog import load_catalog, find_franchise, add_franchise
 
 
 DOWNLOADS = PROJECT_ROOT / "downloads"
 SETTINGS_PATH = PROJECT_ROOT / "config" / "settings.json"
 LIBRARY_PATH = DOWNLOADS / "library.json"
+CATALOG_PATH = PROJECT_ROOT / "config" / "franchise_catalog.json"
+CATALOG_SEED_PATH = PROJECT_ROOT / "data" / "franchise_catalog_seed.json"
 
 
 def initialize_data():
@@ -65,6 +68,14 @@ def initialize_data():
             encoding="utf-8"
         )
 
+    # Keep the legacy library structure while adding a unified local catalog.
+    current_library = json.loads(LIBRARY_PATH.read_text(encoding="utf-8"))
+    legacy_names = [
+        item.get("name") for item in current_library.get("anime", [])
+        if isinstance(item, dict) and isinstance(item.get("name"), str)
+    ]
+    load_catalog(CATALOG_PATH, CATALOG_SEED_PATH, legacy_names)
+
 
 def mature_content_enabled(settings):
     preferences = settings.get("content_preferences") or {}
@@ -100,9 +111,21 @@ def extract_character_name(model_name):
 
 
 
-def add_character(url, anime_name):
+def add_character(url, anime_name, franchise_type=None):
     if not url or not anime_name:
-        raise ValueError("Both the Civitai URL and anime title are required.")
+        raise ValueError("Both the Civitai URL and franchise/source are required.")
+
+    existing_library = json.loads(LIBRARY_PATH.read_text(encoding="utf-8"))
+    catalog_entries = load_catalog(
+        CATALOG_PATH, CATALOG_SEED_PATH,
+        [item.get("name") for item in existing_library.get("anime", [])]
+    )
+    franchise_entry = find_franchise(catalog_entries, anime_name)
+    if franchise_entry is None:
+        franchise_entry = add_franchise(
+            CATALOG_PATH, anime_name, franchise_type, CATALOG_SEED_PATH
+        )
+    anime_name = franchise_entry["name"]
 
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     library = json.loads(LIBRARY_PATH.read_text(encoding="utf-8"))
@@ -246,6 +269,8 @@ def add_character(url, anime_name):
         "success": True,
         "model": model_name,
         "anime": anime_entry["name"],
+        "franchise": anime_entry["name"],
+        "franchise_type": franchise_entry["type"],
         "versions": len(versions),
         "selected_version_id": selected_version_id,
         "all_model_versions_included": True,
@@ -735,7 +760,8 @@ class LibraryHandler(SimpleHTTPRequestHandler):
             if route == "/add-character":
                 result = add_character(
                     data.get("url", "").strip(),
-                    data.get("anime", "").strip()
+                    data.get("anime", "").strip(),
+                    data.get("franchise_type")
                 )
             elif route == "/content-preference":
                 result = update_content_preference(
