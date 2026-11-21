@@ -446,7 +446,12 @@ def create_model_archive(
         page_images = []
         page_generation_panels = []
         page_download_cards = []
-        if isinstance(page_metadata, dict) and selected_page_version == version_id:
+        page_version_confirmed = (
+            isinstance(page_metadata, dict)
+            and page_metadata.get("fetch_status") == "success"
+            and selected_page_version == version_id
+        )
+        if page_version_confirmed:
             page_images = page_metadata.get("gallery_images") or []
             page_generation_panels = page_metadata.get("generation_panels") or []
             page_download_cards = page_metadata.get("download_cards") or []
@@ -464,11 +469,11 @@ def create_model_archive(
         save_json(
             version_folder / "PageMetadata.json",
             {
-                "selected_version_on_page": selected_page_version == version_id,
+                "selected_version_on_page": page_version_confirmed,
                 "version_selector": (
                     page_metadata.get("version_selector")
                     if isinstance(page_metadata, dict)
-                    and selected_page_version == version_id else None
+                    and page_version_confirmed else None
                 ),
                 "details_section": (
                     page_metadata.get("details_section")
