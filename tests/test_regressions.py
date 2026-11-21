@@ -361,7 +361,7 @@ class ArchiveTests(unittest.TestCase):
                 (v1 / "Image_Metadata" / "image_001.json").read_text(encoding="utf-8")
             )
             self.assertEqual(image_meta["civitai_image_id"], 501)
-            self.assertEqual(image_meta["generation_summary"]["prompt"], "one")
+            self.assertEqual(image_meta["generation_summary"]["positive_prompt"], "one")
 
     def test_download_report_uses_archive_relative_paths_and_present_counts(self):
         with tempfile.TemporaryDirectory() as folder:
