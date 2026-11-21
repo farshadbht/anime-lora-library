@@ -33,6 +33,9 @@ def main():
     page_metadata = extract_model_page(
         url, model_data=model, versions=versions
     )
+    page_metadata["api_gallery_image_errors"] = (
+        result.get("gallery_image_errors") or {}
+    )
     print("Civitai webpage extraction:", page_metadata.get("fetch_status"))
     if page_metadata.get("error"):
         print("Webpage extraction note:", page_metadata["error"])
@@ -42,7 +45,8 @@ def main():
         versions,
         settings.get("download_directory", "downloads"),
         save_descriptions=download_options["descriptions"],
-        page_metadata=page_metadata
+        page_metadata=page_metadata,
+        gallery_images_by_version=result.get("gallery_images_by_version")
     )
 
     all_results = []
