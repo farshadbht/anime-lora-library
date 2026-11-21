@@ -164,16 +164,38 @@ def generate():
             </details>
         """)
 
-    manage_data = json.dumps([
-        {
+    manage_entries = []
+    for anime in data.get("anime", []):
+        characters = []
+        for character in anime.get("characters", []):
+            character_folder = ROOT / character["folder"]
+            versions_folder = character_folder / "Versions"
+            preview = None
+            if versions_folder.exists():
+                preview_files = sorted(
+                    path for path in versions_folder.rglob("*")
+                    if path.is_file() and path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+                )
+                if preview_files:
+                    preview = "/downloads/" + local_url(preview_files[0].relative_to(ROOT))
+            characters.append({
+                "name": character["name"], "folder": character["folder"],
+                "preview": preview,
+                "url": "/downloads/" + local_url(Path(character["folder"]) / "index.html")
+            })
+        manage_entries.append({
             "anime": anime["name"],
             "type": franchise_types.get(anime["name"].casefold(), "Other"),
-            "characters": [
-                {"name": character["name"], "folder": character["folder"]}
-                for character in anime.get("characters", [])
-            ]
-        }
-        for anime in data.get("anime", [])
+            "characters": characters
+        })
+    manage_data = json.dumps(manage_entries, ensure_ascii=False).replace("<", "\\u003c")
+    franchise_manage_data = json.dumps([
+        {
+            "name": item["name"], "type": item["type"],
+            "aliases": item.get("aliases", []),
+            "count": sum(len(entry["characters"]) for entry in manage_entries
+                         if entry["anime"].casefold() == item["name"].casefold())
+        } for item in franchise_catalog
     ], ensure_ascii=False).replace("<", "\\u003c")
 
     manage_anime_options = "".join(
@@ -368,6 +390,41 @@ footer {
     color: #666;
     font-size: 11px;
 }
+/* Hybrid management workspace */
+.workspace{display:grid;grid-template-columns:190px minmax(0,1fr);gap:18px;align-items:start}
+.manage-nav{position:sticky;top:16px;display:grid;gap:5px;padding:9px;background:#20202a;border:1px solid #383842;border-radius:10px}
+.manage-nav button{display:flex;align-items:center;gap:10px;width:100%;padding:11px;background:transparent;color:#b9b9c5;text-align:left;border:1px solid transparent;border-radius:7px;font-size:12px}
+.manage-nav button:hover{background:#2a2935;color:#eee}
+.manage-nav button.active{background:#352d42;border-color:#5b4b70;color:#e0c9ff}
+.manage-nav .nav-icon{width:18px;text-align:center;font-size:15px}
+.workspace-content{min-width:0}.view-section{display:none}.view-section.active{display:block}
+.overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:16px}
+.overview-stat{padding:15px;background:#282632;border:1px solid #3c3948;border-radius:9px}
+.overview-stat strong{display:block;font-size:23px;color:#e3d2fa;margin-bottom:5px}
+.overview-stat span{color:#999;font-size:11px}
+.overview-heading{margin:0 0 13px;font-size:17px}
+.overview-note{padding:14px 16px;background:#22222b;border:1px solid #383842;border-radius:9px;color:#aaa;font-size:12px;line-height:1.65}
+.inventory-toolbar{display:flex;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+.inventory-toolbar input,.inventory-toolbar select,.catalog-search{min-width:0;padding:11px;background:#17171d;border:1px solid #494956;border-radius:6px;color:#eee;font-size:12px}
+.inventory-toolbar input{flex:1;min-width:190px}.inventory-toolbar select{min-width:170px}
+.inventory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:11px}
+.inventory-card{overflow:hidden;background:#22222b;border:1px solid #383842;border-radius:9px;min-width:0}
+.inventory-card img,.inventory-card-placeholder{display:block;width:100%;height:135px;object-fit:contain;background:#17171d}
+.inventory-card-placeholder{display:grid;place-items:center;color:#777;font-size:28px}
+.inventory-card-body{padding:10px}.inventory-card-title{display:block;color:#e2d1fa;font-weight:bold;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inventory-card-meta{margin-top:6px;color:#999;font-size:10px;line-height:1.5}
+.inventory-card-actions{margin-top:9px}.inventory-card-actions a{color:#c9a7ff;font-size:11px;text-decoration:none}
+.inventory-empty{padding:24px;text-align:center;color:#999;background:#20202a;border:1px dashed #494956;border-radius:8px}
+.inventory-pagination{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;color:#999;font-size:11px}
+.inventory-pagination button{background:#393044;color:#ddd}
+.franchise-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px}
+.franchise-card{padding:13px;background:#22222b;border:1px solid #383842;border-radius:8px}
+.franchise-card strong{display:block;color:#e0d0f5;font-size:13px;margin-bottom:7px}
+.franchise-card span{color:#999;font-size:11px}.franchise-card .franchise-count{float:right;color:#c9a7ff}
+.catalog-search{width:100%;margin-bottom:11px}
+@media(max-width:900px){.workspace{grid-template-columns:1fr}.manage-nav{position:static;grid-template-columns:repeat(4,minmax(0,1fr))}.manage-nav button{justify-content:center;padding:10px 5px}.manage-nav .nav-label{display:none}.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.inventory-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.inventory-card img,.inventory-card-placeholder{height:105px}}
+
 @media (max-width: 760px) {
     .form-grid, .archive-actions, .move-actions { grid-template-columns: 1fr; }
     .header-inner { align-items: flex-start; flex-direction: column; }
@@ -386,99 +443,114 @@ footer {
 </header>
 
 <main>
-    <p class="intro">
-        Manage the characters in your collection. Removing a character from the library
-        keeps its downloaded archive safe. Permanent deletion is a separate action.
-    </p>
+    <p class="intro">Your collection, organized in one place. Browse characters and franchises, manage archive membership, and maintain downloaded files.</p>
+    <div class="workspace">
+      <nav class="manage-nav" aria-label="Library management sections">
+        <button type="button" class="active" data-view="overview"><span class="nav-icon">▦</span><span class="nav-label">Overview</span></button>
+        <button type="button" data-view="characters"><span class="nav-icon">▣</span><span class="nav-label">Characters</span></button>
+        <button type="button" data-view="franchises"><span class="nav-icon">◈</span><span class="nav-label">Franchises</span></button>
+        <button type="button" data-view="archives"><span class="nav-icon">▤</span><span class="nav-label">Archives</span></button>
+      </nav>
+      <div class="workspace-content">
+        <section class="view-section active" id="view-overview">
+          <h2 class="overview-heading">Library overview</h2>
+          <div class="overview-grid">
+            <div class="overview-stat"><strong>__CHARACTER_COUNT__</strong><span>Characters in library</span></div>
+            <div class="overview-stat"><strong>__FRANCHISE_COUNT__</strong><span>Franchises in catalog</span></div>
+            <div class="overview-stat"><strong>__ARCHIVE_COUNT__</strong><span>Downloaded archives</span></div>
+            <div class="overview-stat"><strong>__UNASSIGNED_COUNT__</strong><span>Archives outside library</span></div>
+          </div>
+          <div class="overview-note"><strong>Quick guide</strong><br>Characters lets you browse the collection and open character pages. Franchises shows your unified source catalog. Archives contains restore and permanent-delete controls. Removing a character from the library never deletes its downloaded archive.</div>
+        </section>
+        <section class="view-section" id="view-characters">
+          <h2 class="overview-heading">Character collection</h2>
+          <div class="inventory-toolbar"><input type="search" id="inventory-search" placeholder="Search characters, franchises, or folders..."><select id="inventory-franchise"><option value="">All franchises</option></select></div>
+          <div class="inventory-grid" id="inventory-grid"></div><div class="inventory-pagination" id="inventory-pagination"></div>
+          <section class="panel remove-panel" style="margin-top:18px">
+            <h2>Remove from library</h2><p class="panel-description">This removes the character listing only. Downloaded archives and files remain safe.</p>
+            <form class="form-grid" id="remove-character-form"><select id="remove-anime" required><option value="">Select franchise...</option>__MANAGE_ANIME_OPTIONS__</select><select id="remove-character" required disabled><option value="">Select character...</option></select><button class="remove-button" type="submit" id="remove-button" disabled>Remove Character</button></form>
+            <div class="status" id="remove-status">Your downloaded archives are preserved when you remove a character here.</div>
+          </section>
+          <section class="panel move-panel"><h2>Move Character</h2><p class="panel-description">Move a character between franchises without changing downloaded files.</p>
+            <div class="move-actions"><select id="move-source-anime"><option value="">From franchise...</option></select><select id="move-character" disabled><option value="">Select character...</option></select><select id="move-target-anime" disabled><option value="">To franchise...</option></select><button class="move-button" type="button" id="move-button" disabled>Move Character</button></div>
+            <div class="status" id="move-status">Archive, LoRA files, images, and metadata remain untouched.</div>
+          </section>
+        </section>
+        <section class="view-section" id="view-franchises">
+          <h2 class="overview-heading">Franchise &amp; source catalog</h2><p class="panel-description">Your unified catalog across anime, games, movies, books, comics, and other sources.</p>
+          <input class="catalog-search" type="search" id="franchise-search" placeholder="Find a franchise or alias..."><div class="franchise-grid" id="franchise-grid"></div><div class="inventory-empty" id="franchise-empty" hidden>No matching franchises.</div>
+        </section>
+        <section class="view-section" id="view-archives">
+          <h2 class="overview-heading">Archives &amp; trash</h2>
+          <section class="panel archive-panel"><h2>Restore or permanently delete</h2><p class="panel-description">Restore an existing archive to your library, or permanently delete an archive and all its contents.</p>
+            <div class="archive-actions"><select id="archive-character"><option value="">Select an archived character...</option>__ARCHIVE_OPTIONS__</select><select id="restore-anime"><option value="">Restore into franchise...</option>__RESTORE_ANIME_OPTIONS__</select><button class="restore-button" type="button" id="restore-button" disabled>Restore to Library</button><button class="delete-button" type="button" id="delete-forever-button" disabled>Delete Forever</button></div>
+            <div class="status" id="archive-status">Restoring does not download anything again. Permanent deletion cannot be undone.</div>
+            <div class="warning">Permanent deletion removes the selected archive folder, including LoRA files, images, descriptions, metadata, and its offline character page. You will be asked to confirm twice.</div>
+          </section>
+        </section>
+      </div>
+    </div>
 
-    <section class="panel remove-panel">
-        <h2>Manage Characters</h2>
-        <p class="panel-description">
-            Remove a character from a franchise category without deleting its downloaded
-            LoRA files, images, descriptions, or offline page.
-        </p>
-        <form class="form-grid" id="remove-character-form">
-            <select id="remove-anime" required>
-                <option value="">Select franchise...</option>
-                __MANAGE_ANIME_OPTIONS__
-            </select>
-            <select id="remove-character" required disabled>
-                <option value="">Select character...</option>
-            </select>
-            <button class="remove-button" type="submit" id="remove-button" disabled>
-                Remove Character
-            </button>
-        </form>
-        <div class="status" id="remove-status">
-            Your downloaded archives are preserved when you remove a character here.
-        </div>
-    </section>
-
-    <section class="panel move-panel">
-        <h2>Move Character</h2>
-        <p class="panel-description">
-            Move a character from one franchise category to another without changing
-            or moving any downloaded files.
-        </p>
-        <div class="move-actions">
-            <select id="move-source-anime">
-                <option value="">From franchise...</option>
-            </select>
-            <select id="move-character" disabled>
-                <option value="">Select character...</option>
-            </select>
-            <select id="move-target-anime" disabled>
-                <option value="">To franchise...</option>
-            </select>
-            <button class="move-button" type="button" id="move-button" disabled>
-                Move Character
-            </button>
-        </div>
-        <div class="status" id="move-status">
-            Your archive, LoRA files, images, and metadata will remain untouched.
-        </div>
-    </section>
-
-    <section class="panel archive-panel">
-        <h2>Archive &amp; Trash</h2>
-        <p class="panel-description">
-            Restore archived characters to your library, or permanently delete an
-            archive and all of its contents.
-        </p>
-        <div class="archive-actions">
-            <select id="archive-character">
-                <option value="">Select an archived character...</option>
-                __ARCHIVE_OPTIONS__
-            </select>
-            <select id="restore-anime">
-                <option value="">Restore into franchise...</option>
-                __RESTORE_ANIME_OPTIONS__
-            </select>
-            <button class="restore-button" type="button" id="restore-button" disabled>
-                Restore to Library
-            </button>
-            <button class="delete-button" type="button" id="delete-forever-button" disabled>
-                Delete Forever
-            </button>
-        </div>
-        <div class="status" id="archive-status">
-            Restoring does not download anything again. Permanent deletion cannot be undone.
-        </div>
-        <div class="warning">
-            Permanent deletion removes the selected archive folder, including its LoRA
-            files, images, descriptions, metadata, and offline character page.
-            You will be asked to confirm twice.
-        </div>
-    </section>
-</main>
+    </main>
 
 <footer>Personal Offline LoRA Library</footer>
 
 <script type="application/json" id="manage-data">__MANAGE_DATA__</script>
 <script type="application/json" id="archive-data">__ARCHIVE_DATA__</script>
+<script type="application/json" id="franchise-data">__FRANCHISE_DATA__</script>
 <script>
 const manageData = JSON.parse(document.getElementById("manage-data").textContent);
 const archiveData = JSON.parse(document.getElementById("archive-data").textContent);
+const franchiseData = JSON.parse(document.getElementById("franchise-data").textContent);
+
+document.querySelectorAll(".manage-nav button").forEach(button => {
+    button.addEventListener("click", () => {
+        document.querySelectorAll(".manage-nav button").forEach(item => item.classList.toggle("active", item === button));
+        document.querySelectorAll(".view-section").forEach(section => section.classList.toggle("active", section.id === "view-" + button.dataset.view));
+    });
+});
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+const allCharacters = manageData.flatMap(entry => entry.characters.map(character => ({...character, anime:entry.anime, type:entry.type}))).sort((a,b) => (a.name+a.anime).localeCompare(b.name+b.anime));
+const inventorySearch = document.getElementById("inventory-search");
+const inventoryFranchise = document.getElementById("inventory-franchise");
+const inventoryGrid = document.getElementById("inventory-grid");
+const inventoryPagination = document.getElementById("inventory-pagination");
+let inventoryPage = 0;
+const inventoryPageSize = 48;
+manageData.forEach(entry => { const option=document.createElement("option"); option.value=entry.anime; option.textContent=entry.anime+" · "+entry.type; inventoryFranchise.appendChild(option); });
+function renderInventory() {
+    const q=inventorySearch.value.trim().toLowerCase(), f=inventoryFranchise.value;
+    const filtered=allCharacters.filter(x=>(!f||x.anime===f)&&(!q||[x.name,x.anime,x.folder].join(" ").toLowerCase().includes(q)));
+    const pages=Math.max(1,Math.ceil(filtered.length/inventoryPageSize)); inventoryPage=Math.min(inventoryPage,pages-1);
+    const shown=filtered.slice(inventoryPage*inventoryPageSize,(inventoryPage+1)*inventoryPageSize); inventoryGrid.innerHTML="";
+    if(!shown.length){inventoryGrid.innerHTML='<div class="inventory-empty">No characters match your search.</div>';}
+    shown.forEach(x=>{
+        const card=document.createElement("article"); card.className="inventory-card";
+        const media=x.preview?'<img loading="lazy" src="'+x.preview.replace(/"/g,"&quot;")+'" alt="">':'<div class="inventory-card-placeholder">▣</div>';
+        card.innerHTML=media+'<div class="inventory-card-body"><a class="inventory-card-title" href="'+x.url.replace(/"/g,"&quot;")+'">'+escapeHtml(x.name)+'</a><div class="inventory-card-meta">'+escapeHtml(x.anime)+'<br>'+escapeHtml(x.type)+'<br>'+escapeHtml(x.folder)+'</div><div class="inventory-card-actions"><a href="'+x.url.replace(/"/g,"&quot;")+'">Open character page ↗</a></div></div>';
+        inventoryGrid.appendChild(card);
+    });
+    inventoryPagination.innerHTML=""; const label=document.createElement("span");
+    label.textContent=filtered.length?"Showing "+(inventoryPage*inventoryPageSize+1)+"–"+Math.min((inventoryPage+1)*inventoryPageSize,filtered.length)+" of "+filtered.length+" characters":"0 characters";
+    const controls=document.createElement("div"), prev=document.createElement("button"), next=document.createElement("button");
+    prev.textContent="Previous";prev.disabled=inventoryPage===0;prev.addEventListener("click",()=>{inventoryPage--;renderInventory();});
+    next.textContent="Next";next.disabled=inventoryPage>=pages-1;next.addEventListener("click",()=>{inventoryPage++;renderInventory();});
+    controls.append(prev,next);inventoryPagination.append(label,controls);
+}
+inventorySearch.addEventListener("input",()=>{inventoryPage=0;renderInventory();});
+inventoryFranchise.addEventListener("change",()=>{inventoryPage=0;renderInventory();});renderInventory();
+
+const franchiseGrid=document.getElementById("franchise-grid"), franchiseEmpty=document.getElementById("franchise-empty");
+function renderFranchises(){
+    const q=document.getElementById("franchise-search").value.trim().toLowerCase();
+    const matches=franchiseData.filter(x=>[x.name,x.type,...(x.aliases||[])].join(" ").toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+    franchiseGrid.innerHTML="";
+    matches.forEach(x=>{const card=document.createElement("article");card.className="franchise-card";card.innerHTML='<span class="franchise-count">'+x.count+' characters</span><strong>'+escapeHtml(x.name)+'</strong><span>'+escapeHtml(x.type)+((x.aliases||[]).length?' · '+x.aliases.length+' aliases':'')+'</span>';franchiseGrid.appendChild(card);});
+    franchiseEmpty.hidden=matches.length>0;
+}
+document.getElementById("franchise-search").addEventListener("input",renderFranchises);renderFranchises();
 
 const animeSelect = document.getElementById("remove-anime");
 const characterSelect = document.getElementById("remove-character");
@@ -744,6 +816,11 @@ deleteForeverButton.addEventListener("click", async () => {
         .replace("__RESTORE_ANIME_OPTIONS__", restore_anime_options)
         .replace("__MANAGE_DATA__", manage_data)
         .replace("__ARCHIVE_DATA__", archive_data)
+        .replace("__FRANCHISE_DATA__", franchise_manage_data)
+        .replace("__CHARACTER_COUNT__", str(sum(len(item["characters"]) for item in manage_entries)))
+        .replace("__FRANCHISE_COUNT__", str(len(franchise_catalog)))
+        .replace("__ARCHIVE_COUNT__", str(len(archived_models)))
+        .replace("__UNASSIGNED_COUNT__", str(sum(1 for item in archived_models if not item["in_library"])))
     )
 
     page = f"""<!DOCTYPE html>
