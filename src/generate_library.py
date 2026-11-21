@@ -823,18 +823,24 @@ main {{
 @media(max-width:650px) {{.online-search-advanced-fields {{grid-template-columns:1fr}}}}
 #civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
 #civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
-.civitai-result {{display:grid;grid-template-columns:148px minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px;background:#1b1b23;border:1px solid #343440;border-radius:6px}}
-.civitai-result img {{width:148px;height:170px;object-fit:contain;border-radius:5px;background:#17171d}}
-.civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:12px;text-decoration:none}}
+.civitai-result {{display:grid;grid-template-columns:220px minmax(0,1fr) 172px;gap:16px;align-items:center;padding:12px;background:#1b1b23;border:1px solid #343440;border-radius:6px}}
+.civitai-result img {{width:220px;height:270px;object-fit:contain;border-radius:5px;background:#17171d}}
+.civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:13px;text-decoration:none}}
 .civitai-result-name:hover {{text-decoration:underline}}
-.civitai-result-meta {{color:#999;font-size:10px;margin-top:5px}}
-.civitai-result-extra {{color:#aaa;font-size:10px;margin-top:4px;line-height:1.5;overflow-wrap:anywhere}}
-.civitai-result-tags {{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}}
-.civitai-result-tag {{padding:2px 5px;background:#292934;border:1px solid #3a3a48;border-radius:3px;color:#bdb3cf;font-size:9px}}
-.civitai-result-downloads {{color:#ddd;font-size:11px;white-space:nowrap;text-align:right}}
+.civitai-result-meta {{color:#999;font-size:11px;margin-top:6px}}
+.civitai-result-extra {{color:#aaa;font-size:11px;margin-top:5px;line-height:1.5;overflow-wrap:anywhere}}
+.civitai-result-tags {{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}}
+.civitai-result-tag {{padding:3px 6px;background:#292934;border:1px solid #3a3a48;border-radius:3px;color:#bdb3cf;font-size:10px}}
+.civitai-result-actions {{display:flex;flex-direction:column;align-items:stretch;gap:8px}}
+.civitai-result-downloads {{color:#ddd;font-size:11px;white-space:normal;text-align:right;margin-bottom:3px}}
+.civitai-result-action {{padding:9px 10px;background:#302a3a;border:1px solid #51465f;border-radius:5px;color:#e5d8f5;cursor:pointer;font-size:11px;font-weight:bold;text-align:center}}
+.civitai-result-action:hover {{background:#40344f}}
+.civitai-result-action.primary {{background:#68449a;border-color:#68449a;color:white}}
+.civitai-result-action.primary:hover {{background:#8059b5}}
 #load-more-models {{display:none;margin-top:10px}}
 @media(max-width:850px) {{.online-search-controls {{grid-template-columns:1fr 1fr}}}}
-@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:88px minmax(0,1fr);gap:10px}}.civitai-result img {{width:88px;height:112px}}.civitai-result-downloads {{grid-column:2;text-align:left}}}}
+@media(max-width:760px) {{.civitai-result {{grid-template-columns:170px minmax(0,1fr)}}.civitai-result img {{width:170px;height:215px}}.civitai-result-actions {{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center}}.civitai-result-downloads {{width:100%;text-align:left}}}}
+@media(max-width:520px) {{.online-search-controls {{grid-template-columns:1fr}}.civitai-result {{grid-template-columns:120px minmax(0,1fr);gap:10px}}.civitai-result img {{width:120px;height:160px}}.civitai-result-actions {{grid-column:1 / -1;flex-direction:row;flex-wrap:wrap}}.civitai-result-downloads {{width:auto;margin:0 auto 0 0;text-align:left}}.civitai-result-action {{flex:1 1 130px}}}}
 .library-stats {{
     color: #999;
     font-size: 11px;
@@ -1372,8 +1378,15 @@ function renderCivitaiResults() {{
     sorted.forEach(model=>{{
         const row=document.createElement("div");row.className="civitai-result";
         const preview=document.createElement("img");preview.alt="";preview.loading="lazy";
-        if(model.preview) preview.src=model.preview;
-        preview.onerror=()=>{{preview.style.visibility="hidden"}};
+        const previewCandidates=Array.isArray(model.previews)?model.previews.filter(url=>typeof url==="string"&&url):[];
+        if(!previewCandidates.length&&model.preview) previewCandidates.push(model.preview);
+        let previewIndex=0;
+        if(previewCandidates.length) preview.src=previewCandidates[0];
+        preview.onerror=()=>{{
+            previewIndex++;
+            if(previewIndex<previewCandidates.length) preview.src=previewCandidates[previewIndex];
+            else preview.style.visibility="hidden";
+        }};
         const details=document.createElement("div"),link=document.createElement("a");
         link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
         details.appendChild(link);
@@ -1403,7 +1416,28 @@ function renderCivitaiResults() {{
             const value=Number(model[sortBy]??0);
             metric.textContent=(sortBy==="rating"?value.toFixed(2):value.toLocaleString())+" "+metricLabels[sortBy];
         }}
-        row.append(preview,details,metric);civitaiResultsElement.appendChild(row);
+        const actions=document.createElement("div");actions.className="civitai-result-actions";
+        actions.appendChild(metric);
+        const copyButton=document.createElement("button");copyButton.type="button";copyButton.className="civitai-result-action";copyButton.textContent="Copy URL";
+        copyButton.addEventListener("click",async()=>{{
+            try {{
+                if(navigator.clipboard&&navigator.clipboard.writeText) {{
+                    await navigator.clipboard.writeText(model.url);
+                }} else {{
+                    const temporary=document.createElement("textarea");temporary.value=model.url;temporary.style.position="fixed";temporary.style.opacity="0";document.body.appendChild(temporary);temporary.select();
+                    const copied=document.execCommand("copy");temporary.remove();
+                    if(!copied) throw new Error("Clipboard access is unavailable.");
+                }}
+                copyButton.textContent="Copied!";
+            }} catch(error) {{
+                copyButton.textContent="Copy failed";
+                civitaiSearchStatus.textContent="Could not copy automatically. You can copy this URL: "+model.url;
+            }}
+        }});
+        const moreButton=document.createElement("button");moreButton.type="button";moreButton.className="civitai-result-action primary";moreButton.textContent="More info on Civitai";
+        moreButton.addEventListener("click",()=>window.open(model.url,"_blank","noopener,noreferrer"));
+        actions.append(copyButton,moreButton);
+        row.append(preview,details,actions);civitaiResultsElement.appendChild(row);
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
     const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
