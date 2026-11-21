@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from src.api import CivitaiAPI
-from src.library_server import _civitai_preview_url
+from src.library_server import _civitai_preview_url, _civitai_preview_urls
 from src.downloader import (
     _model_file_destination,
     _session_for_model_download,
@@ -247,6 +247,20 @@ class CivitaiPreviewURLTests(unittest.TestCase):
         self.assertIsNone(_civitai_preview_url({"url": ""}))
         self.assertIsNone(_civitai_preview_url({"url": "not-a-url-or-uuid"}))
         self.assertIsNone(_civitai_preview_url(None))
+
+    def test_preview_candidates_are_unique_and_skip_invalid_images(self):
+        first = "f548f446-9fc2-429f-a64f-77f96a3b2697"
+        second = "070792ae-c856-4433-9c01-004c32053fa3"
+        urls = _civitai_preview_urls([
+            {"url": first},
+            {"url": "invalid"},
+            {"url": first},
+            {"url": second}
+        ])
+        self.assertEqual(len(urls), 2)
+        self.assertIn(first, urls[0])
+        self.assertIn(second, urls[1])
+        self.assertEqual(_civitai_preview_urls(None), [])
 
 
 class URLAndMetadataTests(unittest.TestCase):
