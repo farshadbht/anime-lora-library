@@ -243,6 +243,8 @@ def search_civitai_models(
             "name": model.get("name") or "Unknown model",
             "type": model.get("type") or "Unknown",
             "creator": creator.get("username") or "Unknown",
+            "creatorUrl": f"https://civitai.com/user/{creator.get('username')}" if creator.get("username") else None,
+            "baseModel": latest.get("baseModel") or "Base model unavailable",
             "downloads": int(stats.get("downloadCount") or 0),
             "likes": int(stats.get("thumbsUpCount") or 0),
             "buzz": int(stats.get("tippedAmountCount") or 0),
