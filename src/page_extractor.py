@@ -238,23 +238,6 @@ def _extract_generation_panels(soup):
         if not card:
             continue
 
-        def text_after_heading(label):
-            target = None
-            for candidate in card.find_all(["p", "h2", "h3", "h4"]):
-                if _clean_text(candidate.get_text()).casefold() == label.casefold():
-                    target = candidate
-                    break
-            if target is None:
-                return None
-            value = target.find_next(
-                lambda node: getattr(node, "name", None) == "div"
-                and node is not card
-                and node.find_parent(class_=lambda c: c and "mantine-Card-root" in str(c))
-            )
-            if value is None:
-                value = target.find_next("div")
-            return _clean_text(value.get_text(" ", strip=True)) if value else None
-
         prompt_heading = next(
             (
                 item for item in card.find_all(["p", "h2", "h3", "h4"])
@@ -405,9 +388,6 @@ def _extract_icon_metrics(soup):
         ]
         if not icon_classes or any(item in seen_icons for item in icon_classes):
             continue
-        if not icon_classes:
-            continue
-
         value = None
         context = None
         for ancestor in svg.parents:
@@ -507,6 +487,9 @@ def extract_model_page(model_url, model_data=None, versions=None):
     try:
         response = session.get(model_url, timeout=(15, 35), allow_redirects=True)
         response.raise_for_status()
+        final_host = (urlparse(response.url).hostname or "").lower()
+        if final_host not in ALLOWED_HOSTS:
+            raise ValueError("Civitai redirected the model page to an untrusted host.")
 
         content_length = _safe_int(response.headers.get("Content-Length"))
         if content_length is not None and content_length > MAX_PAGE_BYTES:
