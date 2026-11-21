@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 def safe_name(name, max_length=100):
     """Convert a model/version name into a safe Windows folder name."""
     name = re.sub(r'[<>:"/\\|?*]', "_", str(name))
-    name = re.sub(r"\\s+", " ", name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
     name = name.rstrip(". ")
     return (name or "Unnamed")[:max_length]
 
@@ -34,7 +34,7 @@ def save_description(folder, html):
     for element in soup(["script", "style"]):
         element.decompose()
 
-    text = soup.get_text(separator="\\n", strip=True)
+    text = soup.get_text(separator="\n", strip=True)
     (folder / "Description.txt").write_text(text, encoding="utf-8")
 
 
@@ -128,7 +128,7 @@ def _write_trigger_words(version_folder, version):
 
     if normalized:
         (Path(version_folder) / "TriggerWords.txt").write_text(
-            "\\n".join(normalized) + "\\n",
+            "\n".join(normalized) + "\n",
             encoding="utf-8"
         )
 
