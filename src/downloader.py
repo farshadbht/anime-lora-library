@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 from pathlib import Path
 from urllib.parse import urlparse, unquote
@@ -340,13 +341,43 @@ def download_version_assets(api, version, version_folder, download_options=None)
                     continue
 
                 destination = images_folder / get_image_filename(url, index)
+                source_manifest = (
+                    version_folder / "Image_Metadata"
+                    / f"image_{index:03d}_source.json"
+                )
                 try:
+                    previous_url = None
+                    if source_manifest.is_file():
+                        try:
+                            previous_url = json.loads(
+                                source_manifest.read_text(encoding="utf-8")
+                            ).get("url")
+                        except (OSError, json.JSONDecodeError):
+                            previous_url = None
+
+                    # If the gallery image at this position changed, never
+                    # mistake the old image file for the newly listed asset.
+                    if destination.exists() and previous_url != url:
+                        destination.unlink()
+                    partial = destination.with_name(destination.name + ".part")
+                    if partial.exists() and previous_url != url:
+                        partial.unlink()
+
                     path, was_downloaded = download_file(
                         image_session,
                         url,
                         destination,
                         description=f"Image {index}",
                         return_status=True
+                    )
+                    source_manifest.parent.mkdir(parents=True, exist_ok=True)
+                    source_manifest.write_text(
+                        json.dumps(
+                            {"url": url, "filename": destination.name},
+                            ensure_ascii=False,
+                            indent=2
+                        ),
+                        encoding="utf-8"
                     )
                     key = "images_downloaded" if was_downloaded else "images_already_present"
                     results[key].append(str(path))
