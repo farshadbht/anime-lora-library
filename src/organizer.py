@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -431,6 +432,11 @@ def create_model_archive(
             image_data = {
                 "image_number": index,
                 "url": image.get("url"),
+                "original_filename": (
+                    (page_image or {}).get("alt")
+                    or Path(unquote(urlparse(str(image.get("url") or "")).path)).name
+                    or None
+                ),
                 "width": image.get("width"),
                 "height": image.get("height"),
                 "nsfw": image.get("nsfw"),
