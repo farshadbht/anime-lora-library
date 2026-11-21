@@ -185,7 +185,7 @@ def _file_summary(model_file):
     summary = _available_fields(
         model_file,
         (
-            "name", "type", "sizeKB", "pickleScanResult",
+            "id", "name", "type", "sizeKB", "pickleScanResult",
             "pickleScanMessage", "virusScanResult", "scannedAt", "hashes",
             "metadata", "primary", "downloadUrl"
         )
