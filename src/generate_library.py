@@ -1222,7 +1222,7 @@ footer {{
             <summary>Advanced Civitai filters</summary>
             <div class="online-search-advanced-fields">
                 <input type="text" id="civitai-base-models" placeholder="Base model(s), comma-separated (e.g. Illustrious, Pony, SDXL 1.0)" aria-label="Base model filter">
-                <label><input type="checkbox" id="civitai-include-nsfw"> Include mature content (where permitted)</label>
+                <label><input type="checkbox" id="civitai-include-nsfw" checked> Include mature content</label>
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
             </div>
         </details>
