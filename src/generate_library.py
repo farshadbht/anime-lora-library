@@ -1316,7 +1316,7 @@ const civitaiResultsElement=document.getElementById("civitai-search-results");
 const loadMoreModelsButton=document.getElementById("load-more-models");
 const civitaiSortSelect=document.getElementById("civitai-sort-by");
 const civitaiSortDirection=document.getElementById("civitai-sort-direction");
-let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={};
+let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={{}};
 const matureContentToggle=document.getElementById("civitai-include-nsfw");
 const matureContentStatus=document.getElementById("mature-content-status");
 
