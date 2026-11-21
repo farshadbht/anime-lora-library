@@ -47,6 +47,31 @@ class CivitaiAPI:
 
         return model_id, version_id
 
+    def search_models(self, query, cursor=None, limit=100, model_type="LORA"):
+        """Search Civitai by relevance; callers can re-rank the returned items."""
+        query = str(query or "").strip()
+        if not query:
+            raise ValueError("Enter a search term.")
+        if len(query) > 200:
+            raise ValueError("Search terms must be 200 characters or fewer.")
+
+        params = {
+            "query": query,
+            "limit": max(1, min(int(limit), 100)),
+        }
+        if cursor not in (None, ""):
+            params["cursor"] = str(cursor)
+        if model_type and model_type != "All":
+            if model_type not in ("LORA", "Checkpoint", "TextualInversion", "Controlnet"):
+                raise ValueError("Unsupported model type.")
+            params["types"] = model_type
+
+        response = self.session.get(
+            f"{self.BASE_URL}/models", params=params, timeout=60
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_model(self, model_id):
         return self._get(f"models/{model_id}")
 
