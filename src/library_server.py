@@ -362,22 +362,12 @@ def get_civitai_model_previews(model_id):
 def search_civitai_models(
     query, cursor=None, model_type="LORA", filters=None
 ):
-    """Search Civitai's own models_v9 index and return its native relevance order."""
+    """Search Civitai's documented model API, preserving its native text relevance."""
     filters = filters if isinstance(filters, dict) else {}
-    if filters.get("from_platform") is True:
-        raise ValueError(
-            "Civitai's current website model-search index does not expose "
-            "the 'Trained on Civitai' filter. Disable that filter to search."
-        )
 
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     mature_enabled = mature_content_enabled(settings)
     api = CivitaiAPI(settings.get("api_key"), mature_content=mature_enabled)
-
-    try:
-        offset = int(cursor or 0)
-    except (TypeError, ValueError):
-        raise ValueError("The search cursor is invalid.")
 
     base_models = filters.get("base_models")
     if isinstance(base_models, str):
@@ -385,97 +375,93 @@ def search_civitai_models(
             value.strip() for value in base_models.split(",") if value.strip()
         ]
 
-    payload = api.search_site_models(
+    # Do not pass a sort parameter: Civitai's API then keeps Meilisearch's
+    # native text relevance ranking. Its cursor is opaque and must be forwarded
+    # unchanged so every "Load more" page continues the same ranked search.
+    payload = api.search_models(
         query=query,
-        offset=offset,
+        cursor=cursor,
         limit=100,
         model_type=model_type,
         base_models=base_models,
+        include_nsfw=mature_enabled,
         supports_generation=filters.get("supports_generation") is True,
         tag=filters.get("tag"),
-        username=filters.get("username")
+        username=filters.get("username"),
+        from_platform=filters.get("from_platform") is True,
+        early_access=filters.get("early_access") is True
     )
 
     site_root = "https://civitai.red" if mature_enabled else "https://civitai.com"
     items = []
-    for hit in payload.get("hits", []):
-        if not isinstance(hit, dict):
+    for model in payload.get("items", []):
+        if not isinstance(model, dict):
             continue
 
-        metrics = hit.get("metrics") or {}
-        user = hit.get("user") or {}
-        images = hit.get("images") or []
-        versions = hit.get("versions") or []
-        latest = hit.get("version") or (versions[0] if versions else {})
-        if not isinstance(latest, dict):
-            latest = {}
-
-        image_count = metrics.get(
-            "imageCount",
-            metrics.get("imagesCount", len(images))
-        )
-        tags = [
-            tag.get("name") if isinstance(tag, dict) else tag
-            for tag in (hit.get("tags") or [])
+        stats = model.get("stats") or {}
+        creator = model.get("creator") or {}
+        versions = model.get("modelVersions") or []
+        latest = versions[0] if versions and isinstance(versions[0], dict) else {}
+        all_images = [
+            image
+            for version in versions
+            if isinstance(version, dict)
+            for image in (version.get("images") or [])
+            if isinstance(image, dict)
         ]
-        model_id = hit.get("id")
-        username = user.get("username") or "Unknown"
-        preview_candidates = _civitai_preview_urls(images)
-        preview = preview_candidates[0] if preview_candidates else None
+        preview_candidates = _civitai_preview_urls(all_images)
+        model_id = model.get("id")
+        username = creator.get("username") or "Unknown"
+        tags = model.get("tags") or []
+        image_count = stats.get(
+            "imageCount",
+            stats.get("imagesCount", len(all_images))
+        )
 
         items.append({
             "id": model_id,
-            "name": hit.get("name") or "Unknown model",
-            "type": hit.get("type") or "Unknown",
+            "name": model.get("name") or "Unknown model",
+            "type": model.get("type") or "Unknown",
             "creator": username,
             "creatorUrl": (
-                f"{site_root}/user/{user.get('username')}"
-                if user.get("username") else None
+                f"{site_root}/user/{creator.get('username')}"
+                if creator.get("username") else None
             ),
             "baseModel": latest.get("baseModel") or "Base model unavailable",
-            "downloads": metrics.get("downloadCount") or 0,
-            "likes": metrics.get("thumbsUpCount") or 0,
-            "buzz": metrics.get("tippedAmountCount") or 0,
-            "comments": metrics.get("commentCount") or 0,
+            "downloads": stats.get("downloadCount") or 0,
+            "likes": stats.get("thumbsUpCount") or 0,
+            "buzz": stats.get("tippedAmountCount") or 0,
+            "comments": stats.get("commentCount") or 0,
             "favorites": (
-                metrics.get("collectedCount")
-                if metrics.get("collectedCount") is not None
-                else metrics.get("favoriteCount") or 0
+                stats.get("collectedCount")
+                if stats.get("collectedCount") is not None
+                else stats.get("favoriteCount") or 0
             ),
             "imagesCount": image_count or 0,
-            "rating": metrics.get("rating"),
-            "ratingCount": metrics.get("ratingCount") or 0,
+            "rating": stats.get("rating"),
+            "ratingCount": stats.get("ratingCount") or 0,
             "createdAt": (
-                hit.get("createdAt")
-                or hit.get("publishedAt")
-                or hit.get("lastVersionAt")
+                latest.get("publishedAt")
+                or model.get("publishedAt")
+                or model.get("createdAt")
+                or model.get("lastVersionAt")
             ),
             "url": f"{site_root}/models/{model_id}",
-            "preview": preview,
+            "preview": preview_candidates[0] if preview_candidates else None,
             "previews": preview_candidates,
             "tags": [tag for tag in tags if isinstance(tag, str) and tag],
-            "updatedAt": hit.get("lastVersionAt")
+            "updatedAt": model.get("lastVersionAt")
         })
 
-    total = payload.get("estimatedTotalHits", payload.get("totalHits"))
-    next_offset = offset + len(payload.get("hits", []))
-    next_cursor = None
-    if (
-        len(payload.get("hits", [])) >= 100
-        and next_offset < 1000
-        and (total is None or next_offset < total)
-    ):
-        next_cursor = str(next_offset)
-
+    metadata = payload.get("metadata") or {}
     return {
         "success": True,
         "items": items,
-        "nextCursor": next_cursor,
-        "totalItems": total,
+        "nextCursor": metadata.get("nextCursor"),
+        "totalItems": payload.get("totalItems"),
         "matureContentEnabled": mature_enabled,
-        "searchSource": "civitai_website_models_v9"
+        "searchSource": "civitai_api_v1_models_query"
     }
-
 
 
 def remove_character(anime_name, folder_name):
