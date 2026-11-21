@@ -54,7 +54,7 @@ class CivitaiAPI:
         limit=100,
         model_type="LORA",
         base_models=None,
-        include_nsfw=False,
+        include_nsfw=True,
         supports_generation=False
     ):
         """Search Civitai's model index; callers may re-rank returned matches."""
