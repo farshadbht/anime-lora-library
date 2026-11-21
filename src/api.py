@@ -215,13 +215,7 @@ class CivitaiAPI:
         payload = {
             "q": query,
             "limit": limit,
-            "offset": offset,
-            "attributesToRetrieve": [
-                "id", "name", "type", "createdAt", "lastVersionAt",
-                "lastVersionAtUnix", "publishedAt", "user", "version",
-                "versions", "metrics", "images", "tags",
-                "earlyAccessDeadline", "hasActivePaidAccess"
-            ]
+            "offset": offset
         }
         if filters:
             payload["filter"] = filters
