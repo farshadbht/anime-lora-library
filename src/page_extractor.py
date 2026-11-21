@@ -304,11 +304,69 @@ def _extract_details_section(soup):
         ):
             continue
         classes = " ".join(element.get("class", []))
-        if "mantine-Accordion" in classes or element.name == "section":
-            return {
-                "text": text,
-                "html": str(element)
+        if "mantine-Accordion" not in classes and element.name != "section":
+            continue
+
+        def capture(label, following_labels):
+            stop = "|".join(re.escape(item) for item in following_labels)
+            match = re.search(
+                rf"\b{re.escape(label)}\s*:?\s*(.*?)(?=\s+(?:{stop})\b|$)",
+                text,
+                re.IGNORECASE
+            )
+            return match.group(1).strip(" :") if match else None
+
+        hash_match = re.search(
+            r"\bHash\s+([A-Za-z0-9_-]+)\s+([A-Fa-f0-9]{6,})",
+            text,
+            re.IGNORECASE
+        )
+        reviews_match = re.search(
+            r"\bPositive\s*\((\d+)\)",
+            text,
+            re.IGNORECASE
+        )
+        air_match = re.search(
+            r"\bAIR\s+(civitai:\d+@\d+(?:\+\d+)?)",
+            text,
+            re.IGNORECASE
+        )
+
+        trigger_groups = []
+        trigger_label = next(
+            (
+                node for node in element.find_all(string=re.compile(r"^\s*Trigger Words\s*$", re.IGNORECASE))
+            ),
+            None
+        )
+        if trigger_label:
+            for ancestor in trigger_label.parent.parents:
+                if ancestor is element.parent:
+                    break
+                badges = ancestor.select(".mantine-Badge-label")
+                if badges:
+                    for badge in badges:
+                        value = _clean_text(badge.get_text(" ", strip=True))
+                        if value and "," in value and value not in trigger_groups:
+                            trigger_groups.append(value)
+                    if trigger_groups:
+                        break
+
+        return {
+            "text": text,
+            "html": str(element),
+            "fields": {
+                "type": capture("Type", ["Stats", "Reviews", "Published"]),
+                "published": capture("Published", ["Base Model", "Usage Tips", "Hash", "Trigger Words", "AIR"]),
+                "base_model": capture("Base Model", ["Usage Tips", "Hash", "Trigger Words", "AIR"]),
+                "usage_tips": capture("Usage Tips", ["Hash", "Trigger Words", "AIR"]),
+                "hash_algorithm": hash_match.group(1) if hash_match else None,
+                "hash_value": hash_match.group(2) if hash_match else None,
+                "positive_reviews": int(reviews_match.group(1)) if reviews_match else None,
+                "air": air_match.group(1) if air_match else None,
+                "trigger_word_groups": trigger_groups
             }
+        }
     return None
 
 
