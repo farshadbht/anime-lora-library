@@ -1560,6 +1560,9 @@ function renderCivitaiResults() {{
     civitaiResultsElement.replaceChildren();
     sorted.forEach(async model=>{{
         const row=document.createElement("div");row.className="civitai-result";
+        // Reserve the sorted position immediately. Preview requests below are asynchronous;
+        // appending only after they finish would scramble the visible ranking.
+        civitaiResultsElement.appendChild(row);
         const previewStrip=document.createElement("div");previewStrip.className="civitai-result-previews";
         const previewCandidates=Array.isArray(model.previews)?model.previews.filter(url=>typeof url==="string"&&url):[];
         if(!previewCandidates.length&&model.preview) previewCandidates.push(model.preview);
@@ -1652,7 +1655,7 @@ function renderCivitaiResults() {{
         const moreButton=document.createElement("button");moreButton.type="button";moreButton.className="civitai-result-action primary";moreButton.textContent="More info on Civitai";
         moreButton.addEventListener("click",()=>window.open(model.url,"_blank","noopener,noreferrer"));
         actions.append(copyButton,moreButton);
-        row.append(previewStrip,details,actions);civitaiResultsElement.appendChild(row);
+        row.append(previewStrip,details,actions);
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
     const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
