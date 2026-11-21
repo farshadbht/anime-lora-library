@@ -474,6 +474,8 @@ def create_model_archive(
                 page_image = page_images[index - 1]
 
             image_data = {
+                "model_id": model_data.get("id"),
+                "version_id": version_id,
                 "image_number": index,
                 "url": image.get("url"),
                 "original_filename": (
