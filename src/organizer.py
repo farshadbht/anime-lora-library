@@ -478,12 +478,12 @@ def create_model_archive(
                 "details_section": (
                     page_metadata.get("details_section")
                     if isinstance(page_metadata, dict)
-                    and selected_page_version == version_id else None
+                    and page_version_confirmed else None
                 ),
                 "model_header": (
                     page_metadata.get("model_header")
                     if isinstance(page_metadata, dict)
-                    and selected_page_version == version_id else None
+                    and page_version_confirmed else None
                 ),
                 "gallery_images": page_images,
                 "generation_panels": page_generation_panels,
