@@ -87,6 +87,30 @@ def download_file(session, url, destination, description="Downloading"):
     return destination
 
 
+def _session_for_model_download(api, url):
+    """Use API credentials only for HTTPS URLs on Civitai-owned hosts."""
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise ValueError("Model download URLs must use HTTPS.")
+
+    hostname = parsed.hostname.lower()
+    trusted_hosts = {
+        "civitai.com",
+        "www.civitai.com",
+        "civitai.red",
+        "www.civitai.red",
+        "image.civitai.com"
+    }
+    if hostname in trusted_hosts:
+        return api.session, None
+
+    # Some model files may be hosted externally. Never send the Civitai API
+    # bearer token to those hosts; try the public download URL unauthenticated.
+    session = requests.Session()
+    session.headers.update({"User-Agent": "CivitaiLoRADownloader/1.0"})
+    return session, session
+
+
 def download_version_assets(api, version, version_folder, download_options=None):
     """
     Download selected assets for one model version.
@@ -164,12 +188,20 @@ def download_version_assets(api, version, version_folder, download_options=None)
             destination = files_folder / filename
 
             try:
-                path = download_file(
-                    api.session,
-                    model_file.get("downloadUrl"),
-                    destination,
-                    description=f"Model {index}"
+                download_url = model_file.get("downloadUrl")
+                download_session, temporary_session = _session_for_model_download(
+                    api, download_url
                 )
+                try:
+                    path = download_file(
+                        download_session,
+                        download_url,
+                        destination,
+                        description=f"Model {index}"
+                    )
+                finally:
+                    if temporary_session is not None:
+                        temporary_session.close()
                 results["files_downloaded"].append(str(path))
             except Exception as error:
                 message = f"Model file {filename}: {error}"
