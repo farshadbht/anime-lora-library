@@ -270,17 +270,38 @@ def _write_trigger_words(version_folder, version):
         )
 
 
+def _archive_relative_paths(root, paths):
+    """Store paths relative to the archive so it remains portable when moved."""
+    root = Path(root).resolve()
+    relative = []
+    for value in paths or []:
+        try:
+            relative.append(Path(value).resolve().relative_to(root).as_posix())
+        except (OSError, ValueError):
+            relative.append(str(value))
+    return relative
+
+
 def save_download_report(root, version_results, download_options, selected_version_id=None):
     """Persist the outcome of every version's asset download in the archive."""
+    root = Path(root)
     records = []
     for item in version_results:
         records.append({
             "version_id": item.get("version_id"),
             "version_name": item.get("version_name"),
-            "files_downloaded": item.get("files_downloaded", []),
-            "images_downloaded": item.get("images_downloaded", []),
-            "files_already_present": item.get("files_already_present", []),
-            "images_already_present": item.get("images_already_present", []),
+            "files_downloaded": _archive_relative_paths(
+                root, item.get("files_downloaded", [])
+            ),
+            "images_downloaded": _archive_relative_paths(
+                root, item.get("images_downloaded", [])
+            ),
+            "files_already_present": _archive_relative_paths(
+                root, item.get("files_already_present", [])
+            ),
+            "images_already_present": _archive_relative_paths(
+                root, item.get("images_already_present", [])
+            ),
             "files_skipped": item.get("files_skipped", 0),
             "images_skipped": item.get("images_skipped", 0),
             "errors": item.get("errors", [])
@@ -289,6 +310,7 @@ def save_download_report(root, version_results, download_options, selected_versi
     errors = [error for item in records for error in item["errors"]]
     report = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "paths_relative_to_archive": True,
         "download_options": download_options,
         "selected_version_id_from_url": selected_version_id,
         "all_model_versions_included": True,
@@ -528,7 +550,7 @@ def create_model_archive(
             "id": version_id,
             "name": version.get("name"),
             "baseModel": version.get("baseModel"),
-            "folder": str(version_folder),
+            "folder": version_folder.relative_to(root).as_posix(),
             "image_count": len(version.get("images", [])),
             "file_count": len(version.get("files", []))
         })
