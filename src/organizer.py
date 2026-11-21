@@ -279,6 +279,8 @@ def save_download_report(root, version_results, download_options, selected_versi
             "version_name": item.get("version_name"),
             "files_downloaded": item.get("files_downloaded", []),
             "images_downloaded": item.get("images_downloaded", []),
+            "files_already_present": item.get("files_already_present", []),
+            "images_already_present": item.get("images_already_present", []),
             "files_skipped": item.get("files_skipped", 0),
             "images_skipped": item.get("images_skipped", 0),
             "errors": item.get("errors", [])
@@ -293,6 +295,8 @@ def save_download_report(root, version_results, download_options, selected_versi
         "version_count": len(records),
         "files_downloaded": sum(len(item["files_downloaded"]) for item in records),
         "images_downloaded": sum(len(item["images_downloaded"]) for item in records),
+        "files_already_present": sum(len(item["files_already_present"]) for item in records),
+        "images_already_present": sum(len(item["images_already_present"]) for item in records),
         "files_skipped": sum(item["files_skipped"] for item in records),
         "images_skipped": sum(item["images_skipped"] for item in records),
         "error_count": len(errors),
