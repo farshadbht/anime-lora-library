@@ -706,12 +706,15 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
             self.assertNotIn("__FRANCHISE_DATA__", page)
             self.assertNotIn("__CHARACTER_COUNT__", page)
             self.assertIn("inventoryPageSize = 48", page)
-            self.assertIn('id="civitai-sort-by"', page)
-            self.assertIn('<option value="relevance" selected>Relevance (Civitai order)</option>', page)
-            self.assertIn('<option value="downloads">Most Downloaded</option>', page)
-            self.assertNotIn('id="civitai-sort-direction"', page)
-            self.assertNotIn("civitaiSortDirection", page)
-            self.assertIn('sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))', page)
+
+    def test_civitai_search_defaults_to_relevance_without_direction_control(self):
+        source = Path(library_generator.__file__).read_text(encoding="utf-8")
+        self.assertIn('id="civitai-sort-by"', source)
+        self.assertIn('<option value="relevance" selected>Relevance (Civitai order)</option>', source)
+        self.assertIn('<option value="downloads">Most Downloaded</option>', source)
+        self.assertNotIn('id="civitai-sort-direction"', source)
+        self.assertNotIn("civitaiSortDirection", source)
+        self.assertIn('sorted.sort((a,b)=>(Number(b[sortBy]??0)-Number(a[sortBy]??0))', source)
 
 
 if __name__ == "__main__":
