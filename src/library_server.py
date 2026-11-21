@@ -18,6 +18,7 @@ sys.path.insert(0, str(SRC))
 from api import CivitaiAPI
 from organizer import create_model_archive, safe_name, save_download_report
 from downloader import download_version_assets
+from page_extractor import extract_model_page
 from offline_site import generate_offline_site
 from generate_library import generate
 
@@ -128,6 +129,15 @@ def add_character(url, anime_name):
     versions = result["versions"]
     selected_version_id = result.get("selected_version_id")
 
+    # Page extraction supplements API data; a blocked/dynamic page never
+    # prevents the API-backed model archive from being created.
+    page_metadata = extract_model_page(
+        url, model_data=model, versions=versions
+    )
+    print("Civitai webpage extraction:", page_metadata.get("fetch_status"))
+    if page_metadata.get("error"):
+        print("Webpage extraction note:", page_metadata["error"])
+
     model_id = model.get("id")
     model_name = model.get("name", "Unknown Model")
 
@@ -157,7 +167,8 @@ def add_character(url, anime_name):
         model,
         versions,
         download_directory,
-        save_descriptions=download_options["descriptions"]
+        save_descriptions=download_options["descriptions"],
+        page_metadata=page_metadata
     )
 
     all_results = []
@@ -239,6 +250,7 @@ def add_character(url, anime_name):
         "images_skipped": sum(item["images_skipped"] for item in all_results),
         "download_options": download_options,
         "download_report": str(download_report),
+        "webpage_extraction": page_metadata.get("fetch_status"),
         "character_page": str(character_page),
         "library_page": str(DOWNLOADS / "index.html")
     }
