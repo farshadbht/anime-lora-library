@@ -1304,7 +1304,7 @@ function renderCivitaiResults() {{
     const sorted=[...civitaiSearchItems];
     if(sortBy==="newest"||sortBy==="oldest") {{
         const dateDirection=sortBy==="newest"?-1:1;
-        sorted.sort((a,b)=>(Date.parse(a.createdAt||"")||0-(Date.parse(b.createdAt||"")||0))*dateDirection);
+        sorted.sort((a,b)=>((Date.parse(a.createdAt||"")||0)-(Date.parse(b.createdAt||"")||0))*dateDirection);
     }} else if(sortBy!=="relevance") {{
         sorted.sort((a,b)=>(Number(a[sortBy]??0)-Number(b[sortBy]??0))*direction);
     }}
