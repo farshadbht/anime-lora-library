@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from urllib.parse import quote
 from html import escape
+from franchise_catalog import load_catalog
 
 PROJECT_ROOT = Path(
     os.environ.get(
@@ -47,6 +48,19 @@ def get_model_info(folder):
 
 def generate():
     data = json.loads(CONFIG.read_text(encoding="utf-8"))
+    catalog_path = PROJECT_ROOT / "config" / "franchise_catalog.json"
+    catalog_seed_path = PROJECT_ROOT / "data" / "franchise_catalog_seed.json"
+    franchise_catalog = load_catalog(
+        catalog_path,
+        catalog_seed_path,
+        [item.get("name") for item in data.get("anime", [])]
+    )
+    franchise_types = {
+        item["name"].casefold(): item["type"] for item in franchise_catalog
+    }
+    franchise_catalog_json = json.dumps(
+        franchise_catalog, ensure_ascii=False
+    ).replace("<", "\\u003c")
 
     anime_sections = []
     total_characters = 0
@@ -130,6 +144,9 @@ def generate():
                     <span class="anime-title">
                         {escape(anime["name"])}
                     </span>
+                    <span class="franchise-type-label">
+                        {escape(franchise_types.get(anime["name"].casefold(), "Other"))}
+                    </span>
                     <span class="count">
                         {valid_count}
                     </span>
@@ -146,11 +163,6 @@ def generate():
                 </div>
             </details>
         """)
-
-    anime_options = "".join(
-        f'<option value="{escape(anime["name"], quote=True)}"></option>'
-        for anime in data.get("anime", [])
-    )
 
     manage_data = json.dumps([
         {
@@ -381,12 +393,12 @@ footer {
     <section class="panel remove-panel">
         <h2>Manage Characters</h2>
         <p class="panel-description">
-            Remove a character from an anime category without deleting its downloaded
+            Remove a character from a franchise category without deleting its downloaded
             LoRA files, images, descriptions, or offline page.
         </p>
         <form class="form-grid" id="remove-character-form">
             <select id="remove-anime" required>
-                <option value="">Select anime...</option>
+                <option value="">Select franchise...</option>
                 __MANAGE_ANIME_OPTIONS__
             </select>
             <select id="remove-character" required disabled>
@@ -404,18 +416,18 @@ footer {
     <section class="panel move-panel">
         <h2>Move Character</h2>
         <p class="panel-description">
-            Move a character from one anime category to another without changing
+            Move a character from one franchise category to another without changing
             or moving any downloaded files.
         </p>
         <div class="move-actions">
             <select id="move-source-anime">
-                <option value="">From anime...</option>
+                <option value="">From franchise...</option>
             </select>
             <select id="move-character" disabled>
                 <option value="">Select character...</option>
             </select>
             <select id="move-target-anime" disabled>
-                <option value="">To anime...</option>
+                <option value="">To franchise...</option>
             </select>
             <button class="move-button" type="button" id="move-button" disabled>
                 Move Character
@@ -438,7 +450,7 @@ footer {
                 __ARCHIVE_OPTIONS__
             </select>
             <select id="restore-anime">
-                <option value="">Restore into anime...</option>
+                <option value="">Restore into franchise...</option>
                 __RESTORE_ANIME_OPTIONS__
             </select>
             <button class="restore-button" type="button" id="restore-button" disabled>
@@ -548,7 +560,7 @@ function updateMoveChoices() {
     const sourceEntry = manageData.find(item => item.anime === sourceAnime);
 
     moveCharacterSelect.innerHTML = '<option value="">Select character...</option>';
-    moveTargetSelect.innerHTML = '<option value="">To anime...</option>';
+    moveTargetSelect.innerHTML = '<option value="">To franchise...</option>';
 
     if (sourceEntry) {
         sourceEntry.characters.forEach(character => {
@@ -602,7 +614,7 @@ moveButton.addEventListener("click", async () => {
 
     moveButton.disabled = true;
     moveButton.textContent = "Moving...";
-    moveStatus.textContent = "Updating anime categories...";
+    moveStatus.textContent = "Updating franchise categories...";
 
     try {
         const response = await fetch("/move-character", {
@@ -739,7 +751,7 @@ deleteForeverButton.addEventListener("click", async () => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>My Anime LoRA Library</title>
+<title>My Franchise LoRA Library</title>
 
 <style>
 * {{
@@ -903,6 +915,16 @@ main {{
     font-size: 11px;
     white-space: pre-wrap;
 }}
+.franchise-autocomplete {{position:relative;min-width:0}}
+.franchise-autocomplete input,.franchise-new-type select {{box-sizing:border-box;width:100%;min-width:0;padding:10px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:12px}}
+.franchise-suggestions {{position:absolute;z-index:30;top:calc(100% + 4px);left:0;right:0;max-height:280px;overflow-y:auto;background:#24232d;border:1px solid #5a506b;border-radius:6px;box-shadow:0 10px 24px #0008}}
+.franchise-suggestions[hidden],.franchise-new-type[hidden] {{display:none}}
+.franchise-suggestion {{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;background:transparent;border:0;border-bottom:1px solid #393642;border-radius:0;color:#eee;text-align:left;font-size:12px;white-space:normal}}
+.franchise-suggestion:hover {{background:#393044}}
+.franchise-suggestion small {{color:#bca6d8;font-size:10px;white-space:nowrap}}
+.add-franchise-suggestion {{color:#c9a7ff;justify-content:flex-start}}
+.franchise-new-type small {{display:block;margin-top:5px;color:#aaa;font-size:10px}}
+.franchise-type-label {{margin-left:10px;padding:3px 7px;border:1px solid #51465f;border-radius:10px;color:#c9a7ff;font-size:10px;font-weight:normal;vertical-align:middle}}
 
 @media (max-width: 750px) {{
     header {{
@@ -1162,7 +1184,7 @@ footer {{
 <body>
 
 <header>
-    <h1>My Anime LoRA Library</h1>
+    <h1>My Franchise LoRA Library</h1>
     <p>Personal Offline Collection</p>
     <a class="manage-link" href="manage.html" title="Manage characters and archives">
         <span class="trash-icon">&#128465;</span>
@@ -1176,30 +1198,29 @@ footer {{
         <h2>+ Add a New Character</h2>
 
         <form class="add-form" id="add-character-form">
-            <input
-                type="url"
-                id="civitai-url"
-                placeholder="Paste Civitai model URL..."
-                required
-            >
+            <input type="url" id="civitai-url" placeholder="Paste Civitai model URL..." required>
 
-            <input
-                type="text"
-                id="anime-title"
-                list="anime-options"
-                placeholder="Anime title (existing or new)..."
-                required
-            >
+            <div class="franchise-autocomplete">
+                <input type="text" id="franchise-title"
+                    placeholder="Search or add a franchise / source..."
+                    autocomplete="off" aria-autocomplete="list"
+                    aria-controls="franchise-suggestions" required>
+                <div id="franchise-suggestions" class="franchise-suggestions" role="listbox" hidden></div>
+            </div>
 
-            <datalist id="anime-options">
-                {anime_options}
-            </datalist>
+            <div class="franchise-new-type" id="franchise-new-type" hidden>
+                <select id="franchise-type" aria-label="New franchise type">
+                    <option value="">Choose source type...</option>
+                    <option>Anime / Manga</option><option>Video Game</option>
+                    <option>Movie</option><option>TV Series</option>
+                    <option>Book / Novel</option><option>Comic</option>
+                    <option>Original Work</option><option>Other</option>
+                </select>
+                <small>New entries are saved to your local catalog.</small>
+            </div>
 
-            <button type="submit" id="add-button">
-                Add Character & Download
-            </button>
+            <button type="submit" id="add-button">Add Character & Download</button>
         </form>
-
         <div id="add-status"></div>
     </section>
 
@@ -1257,27 +1278,109 @@ footer {{
         class="search-box"
         id="search"
         type="search"
-        placeholder="Search anime, characters, checkpoints or artists..."
+        placeholder="Search franchises, characters, checkpoints or artists..."
         oninput="filterLibrary()"
     >
 
     {''.join(anime_sections)}
 
     <div id="empty-message">
-        No matching anime or characters found.
+        No matching franchises or characters found.
     </div>
 </main>
 
 <footer>Personal Offline LoRA Library</footer>
 
 <script>
+const franchiseCatalog = {franchise_catalog_json};
+const franchiseInput = document.getElementById("franchise-title");
+const franchiseSuggestions = document.getElementById("franchise-suggestions");
+const franchiseNewType = document.getElementById("franchise-new-type");
+
+function renderFranchiseSuggestions() {{
+    const query = franchiseInput.value.trim().toLowerCase();
+    franchiseSuggestions.innerHTML = "";
+    franchiseNewType.hidden = true;
+    if (!query) {{
+        franchiseSuggestions.hidden = true;
+        return;
+    }}
+
+    const matches = franchiseCatalog.filter(item =>
+        item.name.toLowerCase().includes(query) ||
+        (item.aliases || []).some(alias => alias.toLowerCase().includes(query))
+    ).slice(0, 8);
+
+    matches.forEach(item => {{
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "franchise-suggestion";
+        option.setAttribute("role", "option");
+        const name = document.createElement("span");
+        name.textContent = item.name;
+        const type = document.createElement("small");
+        type.textContent = item.type;
+        option.append(name, type);
+        option.addEventListener("click", () => {{
+            franchiseInput.value = item.name;
+            franchiseInput.dataset.selected = item.name;
+            franchiseNewType.hidden = true;
+            franchiseSuggestions.hidden = true;
+        }});
+        franchiseSuggestions.appendChild(option);
+    }});
+
+    const exactMatch = franchiseCatalog.some(item =>
+        item.name.toLowerCase() === query ||
+        (item.aliases || []).some(alias => alias.toLowerCase() === query)
+    );
+    if (!exactMatch) {{
+        const addOption = document.createElement("button");
+        addOption.type = "button";
+        addOption.className = "franchise-suggestion add-franchise-suggestion";
+        addOption.setAttribute("role", "option");
+        addOption.textContent = '＋ Add "' + franchiseInput.value.trim() + '" as a new franchise';
+        addOption.addEventListener("click", () => {{
+            franchiseInput.dataset.selected = "";
+            franchiseNewType.hidden = false;
+            franchiseSuggestions.hidden = true;
+            document.getElementById("franchise-type").focus();
+        }});
+        franchiseSuggestions.appendChild(addOption);
+    }}
+    franchiseSuggestions.hidden = franchiseSuggestions.children.length === 0;
+}}
+
+franchiseInput.addEventListener("input", () => {{
+    franchiseInput.dataset.selected = "";
+    renderFranchiseSuggestions();
+}});
+franchiseInput.addEventListener("focus", renderFranchiseSuggestions);
+document.addEventListener("click", event => {{
+    if (!event.target.closest(".franchise-autocomplete")) {{
+        franchiseSuggestions.hidden = true;
+    }}
+}});
+
 document.getElementById("add-character-form").addEventListener("submit", async function(event) {{
     event.preventDefault();
 
     const url = document.getElementById("civitai-url").value.trim();
-    const anime = document.getElementById("anime-title").value.trim();
+    const franchise = document.getElementById("franchise-title").value.trim();
+    const franchiseType = document.getElementById("franchise-type").value;
     const button = document.getElementById("add-button");
     const status = document.getElementById("add-status");
+
+    const knownFranchise = franchiseCatalog.find(item =>
+        item.name.toLowerCase() === franchise.toLowerCase() ||
+        (item.aliases || []).some(alias => alias.toLowerCase() === franchise.toLowerCase())
+    );
+    const isNewFranchise = document.getElementById("franchise-new-type").hidden === false;
+    if (!knownFranchise && (!isNewFranchise || !franchiseType)) {{
+        status.textContent = "Choose a suggestion, or select “Add as new” and choose its type.";
+        document.getElementById("franchise-title").focus();
+        return;
+    }}
 
     button.disabled = true;
     button.textContent = "Downloading...";
@@ -1289,7 +1392,11 @@ document.getElementById("add-character-form").addEventListener("submit", async f
             headers: {{
                 "Content-Type": "application/json"
             }},
-            body: JSON.stringify({{ url, anime }})
+            body: JSON.stringify({{
+                url,
+                anime: knownFranchise ? knownFranchise.name : franchise,
+                franchise_type: knownFranchise ? knownFranchise.type : franchiseType
+            }})
         }});
 
         const result = await response.json();
@@ -1300,7 +1407,8 @@ document.getElementById("add-character-form").addEventListener("submit", async f
 
         status.textContent =
             "SUCCESS! " + result.model + "\\n" +
-            "Anime: " + result.anime + "\\n" +
+            "Franchise: " + (result.franchise || result.anime) + "\\n" +
+            "Type: " + (result.franchise_type || "Other") + "\\n" +
             "Versions: " + result.versions +
             " | Files: " + result.files +
             " | Images: " + result.images +
