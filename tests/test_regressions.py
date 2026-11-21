@@ -62,6 +62,92 @@ class FakeSession:
         return self.response
 
 
+class CivitaiAPITests(unittest.TestCase):
+    def test_get_all_versions_retrieves_every_version(self):
+        api = CivitaiAPI()
+        api.get_version = Mock(side_effect=[
+            {"id": 11, "modelId": 100},
+            {"id": 12, "modelId": 100},
+        ])
+        versions = api.get_all_versions({
+            "id": 100,
+            "modelVersions": [{"id": 11}, {"id": 12}]
+        })
+        self.assertEqual([item["id"] for item in versions], [11, 12])
+        self.assertEqual(api.get_version.call_count, 2)
+
+    def test_get_all_versions_rejects_a_version_from_another_model(self):
+        api = CivitaiAPI()
+        api.get_version = Mock(return_value={"id": 11, "modelId": 999})
+        with self.assertRaises(ValueError):
+            api.get_all_versions({
+                "id": 100,
+                "modelVersions": [{"id": 11}]
+            })
+
+    def test_get_all_versions_fails_instead_of_silently_archiving_partially(self):
+        api = CivitaiAPI()
+        api.get_version = Mock(side_effect=requests.Timeout("fixture timeout"))
+        with self.assertRaisesRegex(RuntimeError, "archive was not started"):
+            api.get_all_versions({
+                "id": 100,
+                "modelVersions": [{"id": 11}]
+            })
+
+    def test_model_url_tracks_selected_version_and_returns_all_versions(self):
+        api = CivitaiAPI()
+        api.get_model = Mock(return_value={"id": 100, "name": "Fixture"})
+        api.get_all_versions = Mock(return_value=[
+            {"id": 11, "images": []},
+            {"id": 12, "images": []},
+        ])
+        result = api.get_model_from_url(
+            "https://civitai.com/models/100/fixture?modelVersionId=12"
+        )
+        self.assertEqual(result["selected_version_id"], 12)
+        self.assertEqual([item["id"] for item in result["versions"]], [11, 12])
+        self.assertTrue(result["all_versions_included"])
+
+    def test_model_url_rejects_selected_version_not_belonging_to_model(self):
+        api = CivitaiAPI()
+        api.get_model = Mock(return_value={"id": 100, "name": "Fixture"})
+        api.get_all_versions = Mock(return_value=[{"id": 11, "images": []}])
+        with self.assertRaisesRegex(ValueError, "not part of this model"):
+            api.get_model_from_url(
+                "https://civitai.com/models/100/fixture?modelVersionId=12"
+            )
+
+    def test_search_preserves_native_relevance_and_passes_supported_filters(self):
+        api = CivitaiAPI()
+        response = Mock()
+        response.json.return_value = {"items": []}
+        api.session.get = Mock(return_value=response)
+
+        api.search_models(
+            "epsilon",
+            model_type="LORA",
+            base_models=["Anima", "SDXL"],
+            include_nsfw=True,
+            supports_generation=True,
+            tag="character",
+            username="fluxis",
+            from_platform=True,
+            early_access=True
+        )
+
+        params = api.session.get.call_args.kwargs["params"]
+        self.assertEqual(params["query"], "epsilon")
+        self.assertNotIn("sort", params)
+        self.assertEqual(params["baseModels"], ["Anima", "SDXL"])
+        self.assertEqual(params["types"], "LORA")
+        self.assertEqual(params["nsfw"], "true")
+        self.assertEqual(params["supportsGeneration"], "true")
+        self.assertEqual(params["tag"], "character")
+        self.assertEqual(params["username"], "fluxis")
+        self.assertEqual(params["fromPlatform"], "true")
+        self.assertEqual(params["earlyAccess"], "true")
+
+
 class URLAndMetadataTests(unittest.TestCase):
     def test_parse_model_url_accepts_supported_hosts_and_version(self):
         self.assertEqual(
