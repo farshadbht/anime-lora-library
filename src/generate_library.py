@@ -1234,8 +1234,8 @@ footer {{
                 <input type="text" id="civitai-tag-filter" placeholder="Civitai tag (optional)" aria-label="Tag filter">
                 <input type="text" id="civitai-creator-filter" placeholder="Creator username (optional)" aria-label="Creator filter">
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
-                <label><input type="checkbox" id="civitai-from-platform"> Trained on Civitai</label>
-                <label><input type="checkbox" id="civitai-early-access"> Include early-access versions</label>
+                <label><input type="checkbox" id="civitai-from-platform" disabled title="Civitai's current website search does not expose this filter"> Trained on Civitai (not available in website search)</label>
+                <label><input type="checkbox" id="civitai-early-access" disabled title="Early-access visibility is controlled by Civitai"> Early-access results follow Civitai's access rules</label>
             </div>
         </details>
         <div id="civitai-search-status"></div><div id="civitai-search-results"></div>
