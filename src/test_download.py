@@ -75,6 +75,8 @@ def main():
 
     total_files = sum(len(item["files_downloaded"]) for item in all_results)
     total_images = sum(len(item["images_downloaded"]) for item in all_results)
+    total_files_present = sum(len(item.get("files_already_present", [])) for item in all_results)
+    total_images_present = sum(len(item.get("images_already_present", [])) for item in all_results)
     total_errors = sum(len(item["errors"]) for item in all_results)
     total_files_skipped = sum(item["files_skipped"] for item in all_results)
     total_images_skipped = sum(item["images_skipped"] for item in all_results)
@@ -87,7 +89,9 @@ def main():
     print("Selected URL version:", selected_version_id)
     print("All model versions included:", True)
     print("Files downloaded:", total_files)
+    print("Files already present:", total_files_present)
     print("Images downloaded:", total_images)
+    print("Images already present:", total_images_present)
     print("Files skipped:", total_files_skipped)
     print("Images skipped:", total_images_skipped)
     print("Errors:", total_errors)
