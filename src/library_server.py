@@ -381,7 +381,10 @@ def search_civitai_models(
     payload = api.search_models(
         query=query,
         cursor=cursor,
-        limit=100,
+        # Keep each relevance-ranked batch small: secondary sorting should
+        # not pull weak matches from deep in a broad 100-item batch to the top.
+        # Load More fetches the next cursor batch when the user wants more.
+        limit=20,
         model_type=model_type,
         base_models=base_models,
         include_nsfw=mature_enabled,
