@@ -1317,9 +1317,9 @@ footer {{
             <button type="submit" id="civitai-search-button">Search Civitai</button>
         </form>
         <div class="online-search-sort-control">
-            <label for="civitai-sort-by">Sort the loaded results (Civitai relevance is the default)</label>
+            <label for="civitai-sort-by">Secondary sort (optional)</label>
             <select id="civitai-sort-by" aria-label="Sort loaded results">
-                <option value="" selected>Keep Civitai relevance order</option>
+                <option value="" selected disabled hidden>Choose a sorting metric</option>
                 <option value="downloads">Most Downloaded</option>
                 <option value="likes">Most Liked</option>
                 <option value="buzz">Most Buzz (tipped amount)</option>
@@ -1330,6 +1330,7 @@ footer {{
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
             </select>
+            <button type="button" id="civitai-reset-sort">Reset to relevance</button>
         </div>
         <div class="online-search-content-preference">
             <label><input type="checkbox" id="civitai-include-nsfw"> I confirm I am 18 or older and want to view mature content</label>
@@ -1342,7 +1343,7 @@ footer {{
                 <input type="text" id="civitai-tag-filter" placeholder="Civitai tag (optional)" aria-label="Tag filter">
                 <input type="text" id="civitai-creator-filter" placeholder="Creator username (optional)" aria-label="Creator filter">
                 <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
-                <label><input type="checkbox" id="civitai-from-platform" disabled title="Civitai's current website search does not expose this filter"> Trained on Civitai (not available in website search)</label>
+                <label><input type="checkbox" id="civitai-from-platform"> Trained on Civitai</label>
                 <label><input type="checkbox" id="civitai-early-access" disabled title="Early-access visibility is controlled by Civitai"> Early-access results follow Civitai's access rules</label>
             </div>
         </details>
@@ -1510,6 +1511,7 @@ const civitaiSearchStatus=document.getElementById("civitai-search-status");
 const civitaiResultsElement=document.getElementById("civitai-search-results");
 const loadMoreModelsButton=document.getElementById("load-more-models");
 const civitaiSortSelect=document.getElementById("civitai-sort-by");
+const civitaiResetSortButton=document.getElementById("civitai-reset-sort");
 let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={{}};
 const matureContentToggle=document.getElementById("civitai-include-nsfw");
 const matureContentStatus=document.getElementById("mature-content-status");
@@ -1625,9 +1627,7 @@ function renderCivitaiResults() {{
             details.appendChild(tagRow);
         }}
         const metric=document.createElement("div");metric.className="civitai-result-downloads";
-        if(sortBy==="relevance") {{
-            metric.textContent="Civitai search order";
-        }} else if(sortBy==="newest"||sortBy==="oldest") {{
+        if(sortBy==="newest"||sortBy==="oldest") {{
             metric.textContent=model.createdAt?new Date(model.createdAt).toLocaleDateString():"Date unavailable";
         }} else if(sortBy==="rating"&&model.rating==null) {{
             metric.textContent="No rating data";
@@ -1661,7 +1661,7 @@ function renderCivitaiResults() {{
         row.append(previewStrip,details,actions);
     }});
     loadMoreModelsButton.style.display=civitaiNextCursor?"inline-block":"none";
-    const labels={{relevance:"Civitai relevance",downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
+    const labels={{downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"discussion",favorites:"collections",imagesCount:"image count",rating:"average rating",newest:"newest first",oldest:"oldest first"}};
     civitaiSearchStatus.textContent="Collected "+civitaiSearchItems.length+" relevance-ranked results · "+(sortBy?("sorted by "+labels[sortBy]):"showing original Civitai relevance order")+".";
 
 }}
@@ -1686,7 +1686,7 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
         from_platform:document.getElementById("civitai-from-platform").checked,
         early_access:document.getElementById("civitai-early-access").checked
     }};
-    civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
+    civitaiSearchItems=[];civitaiNextCursor=null;civitaiSortSelect.value="";civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
     civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
     try {{
         const result=await requestCivitaiModels();civitaiSearchItems=(result.items||[]).map((item,index)=>({{...item,_civitaiRank:index}}));civitaiNextCursor=result.nextCursor||null;
@@ -1705,6 +1705,10 @@ loadMoreModelsButton.addEventListener("click",async()=>{{
     finally {{loadMoreModelsButton.disabled=false}}
 }});
 civitaiSortSelect.addEventListener("change",()=>{{if(civitaiSearchItems.length)renderCivitaiResults()}});
+civitaiResetSortButton.addEventListener("click",()=>{{
+    civitaiSortSelect.value="";
+    if(civitaiSearchItems.length)renderCivitaiResults();
+}});
 
 function filterLibrary() {{
     const query = document.getElementById("search")

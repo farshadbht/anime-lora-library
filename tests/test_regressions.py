@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from src.api import CivitaiAPI
 from src.library_server import _civitai_preview_url, _civitai_preview_urls
+from src import library_server as library_server_module
 from src.franchise_catalog import add_franchise, find_franchise, load_catalog
 from src.downloader import (
     _model_file_destination,
@@ -227,6 +228,77 @@ class CivitaiAPITests(unittest.TestCase):
         self.assertEqual(params["username"], "fluxis")
         self.assertEqual(params["fromPlatform"], "true")
         self.assertEqual(params["earlyAccess"], "true")
+
+
+class CivitaiSearchServerTests(unittest.TestCase):
+    def test_search_uses_official_relevance_api_and_opaque_cursor(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            settings_path = Path(temporary) / "settings.json"
+            settings_path.write_text(json.dumps({
+                "api_key": "test-key",
+                "content_preferences": {"mature_content_enabled": False}
+            }), encoding="utf-8")
+
+            payload = {
+                "items": [{
+                    "id": 123,
+                    "name": "Character LoRA",
+                    "type": "LORA",
+                    "creator": {"username": "fixture_creator"},
+                    "tags": ["character", "anime"],
+                    "stats": {
+                        "downloadCount": 1200,
+                        "thumbsUpCount": 90,
+                        "tippedAmountCount": 12,
+                        "commentCount": 5,
+                        "imageCount": 7
+                    },
+                    "modelVersions": [{
+                        "baseModel": "Pony",
+                        "publishedAt": "2026-01-02T00:00:00.000Z",
+                        "images": [{
+                            "url": "https://image.civitai.com/fixture-preview.jpeg"
+                        }]
+                    }]
+                }],
+                "metadata": {"nextCursor": "opaque-next-cursor"}
+            }
+
+            with patch.object(library_server_module, "SETTINGS_PATH", settings_path), patch.object(library_server_module, "CivitaiAPI") as api_factory:
+                api = api_factory.return_value
+                api.search_models.return_value = payload
+
+                result = library_server_module.search_civitai_models(
+                    "Character",
+                    cursor="opaque-current-cursor",
+                    model_type="LORA",
+                    filters={
+                        "base_models": "Pony, SDXL",
+                        "supports_generation": True,
+                        "tag": "character",
+                        "username": "fixture_creator",
+                        "from_platform": True,
+                        "early_access": True
+                    }
+                )
+
+        api_factory.assert_called_once_with("test-key", mature_content=False)
+        call = api.search_models.call_args.kwargs
+        self.assertEqual(call["cursor"], "opaque-current-cursor")
+        self.assertEqual(call["query"], "Character")
+        self.assertEqual(call["model_type"], "LORA")
+        self.assertEqual(call["base_models"], ["Pony", "SDXL"])
+        self.assertFalse(call["include_nsfw"])
+        self.assertTrue(call["supports_generation"])
+        self.assertTrue(call["from_platform"])
+        self.assertTrue(call["early_access"])
+        self.assertNotIn("sort", call)
+        self.assertEqual(result["nextCursor"], "opaque-next-cursor")
+        self.assertEqual(result["searchSource"], "civitai_api_v1_models_query")
+        self.assertEqual(result["items"][0]["downloads"], 1200)
+        self.assertEqual(result["items"][0]["baseModel"], "Pony")
+        self.assertEqual(result["items"][0]["tags"], ["character", "anime"])
+        self.assertEqual(result["items"][0]["url"], "https://civitai.com/models/123")
 
 
 class CivitaiPreviewURLTests(unittest.TestCase):
@@ -711,7 +783,10 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
         source = Path(library_generator.__file__).read_text(encoding="utf-8")
         self.assertIn('id="civitai-sort-by"', source)
         self.assertNotIn('<option value="relevance"', source)
-        self.assertIn('<option value="" selected>Keep Civitai relevance order</option>', source)
+        self.assertIn('<option value="" selected disabled hidden>Choose a sorting metric</option>', source)
+        self.assertNotIn("Keep Civitai relevance order</option>", source)
+        self.assertIn('id="civitai-reset-sort"', source)
+        self.assertIn('civitaiResetSortButton.addEventListener("click"', source)
         self.assertIn('<option value="downloads">Most Downloaded</option>', source)
         self.assertNotIn('id="civitai-sort-direction"', source)
         self.assertNotIn("civitaiSortDirection", source)
@@ -727,6 +802,7 @@ class ManageLibraryWorkspaceTests(unittest.TestCase):
         self.assertIn('civitaiSearchItems.push(...(result.items||[]).map', source)
         self.assertEqual(source.count('requestCivitaiModels()'), 1)
         self.assertIn('requestCivitaiModels(civitaiNextCursor)', source)
+        self.assertIn('civitaiSortSelect.value="";', source)
         # Result rows must reserve their sorted DOM position before asynchronous preview loading.
         reserve_position = source.index('civitaiResultsElement.appendChild(row);')
         preview_loading = source.index('if(previewCandidates.length<3) await loadCanonicalPreviews();')
