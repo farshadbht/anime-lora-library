@@ -268,72 +268,123 @@ def add_character(url, anime_name):
 def search_civitai_models(
     query, cursor=None, model_type="LORA", filters=None
 ):
-    """Return Civitai relevance-ranked matches using supported browse filters."""
+    """Search Civitai's own models_v9 index and return its native relevance order."""
     filters = filters if isinstance(filters, dict) else {}
+    if filters.get("from_platform") is True:
+        raise ValueError(
+            "Civitai's current website model-search index does not expose "
+            "the 'Trained on Civitai' filter. Disable that filter to search."
+        )
+
     settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     mature_enabled = mature_content_enabled(settings)
     api = CivitaiAPI(settings.get("api_key"), mature_content=mature_enabled)
-    payload = api.search_models(
+
+    try:
+        offset = int(cursor or 0)
+    except (TypeError, ValueError):
+        raise ValueError("The search cursor is invalid.")
+
+    base_models = filters.get("base_models")
+    if isinstance(base_models, str):
+        base_models = [
+            value.strip() for value in base_models.split(",") if value.strip()
+        ]
+
+    payload = api.search_site_models(
         query=query,
-        cursor=cursor,
+        offset=offset,
         limit=100,
         model_type=model_type,
-        base_models=filters.get("base_models"),
-        include_nsfw=mature_enabled,
+        base_models=base_models,
         supports_generation=filters.get("supports_generation") is True,
         tag=filters.get("tag"),
-        username=filters.get("username"),
-        from_platform=filters.get("from_platform") is True,
-        early_access=filters.get("early_access") is True
+        username=filters.get("username")
     )
 
+    site_root = "https://civitai.red" if mature_enabled else "https://civitai.com"
     items = []
-    for model in payload.get("items", []):
-        versions = model.get("modelVersions") or []
-        latest = versions[0] if versions else {}
-        images = latest.get("images") or []
-        creator = model.get("creator") or {}
-        stats = model.get("stats") or {}
+    for hit in payload.get("hits", []):
+        if not isinstance(hit, dict):
+            continue
 
-        image_count = sum(
-            len(version.get("images") or [])
-            for version in versions
+        metrics = hit.get("metrics") or {}
+        user = hit.get("user") or {}
+        images = hit.get("images") or []
+        versions = hit.get("versions") or []
+        latest = hit.get("version") or (versions[0] if versions else {})
+        if not isinstance(latest, dict):
+            latest = {}
+
+        image_count = metrics.get(
+            "imageCount",
+            metrics.get("imagesCount", len(images))
         )
-        created_at = (
-            model.get("createdAt")
-            or (latest.get("publishedAt") if latest else None)
-            or (latest.get("createdAt") if latest else None)
+        tags = [
+            tag.get("name") if isinstance(tag, dict) else tag
+            for tag in (hit.get("tags") or [])
+        ]
+        model_id = hit.get("id")
+        username = user.get("username") or "Unknown"
+        preview = next(
+            (
+                image.get("url")
+                for image in images
+                if isinstance(image, dict) and image.get("url")
+            ),
+            None
         )
 
         items.append({
-            "id": model.get("id"),
-            "name": model.get("name") or "Unknown model",
-            "type": model.get("type") or "Unknown",
-            "creator": creator.get("username") or "Unknown",
-            "creatorUrl": f"https://{'civitai.red' if mature_enabled else 'civitai.com'}/user/{creator.get('username')}" if creator.get("username") else None,
+            "id": model_id,
+            "name": hit.get("name") or "Unknown model",
+            "type": hit.get("type") or "Unknown",
+            "creator": username,
+            "creatorUrl": (
+                f"{site_root}/user/{user.get('username')}"
+                if user.get("username") else None
+            ),
             "baseModel": latest.get("baseModel") or "Base model unavailable",
-            "downloads": int(stats.get("downloadCount") or 0),
-            "likes": int(stats.get("thumbsUpCount") or 0),
-            "buzz": int(stats.get("tippedAmountCount") or 0),
-            "comments": int(stats.get("commentCount") or 0),
-            "favorites": int(stats.get("collectedCount", stats.get("favoriteCount")) or 0),
-            "imagesCount": image_count,
-            "rating": stats.get("rating"),
-            "ratingCount": int(stats.get("ratingCount") or 0),
-            "createdAt": created_at,
-            "url": f"https://{'civitai.red' if mature_enabled else 'civitai.com'}/models/{model.get('id')}",
-            "preview": images[0].get("url") if images else None,
-            "tags": model.get("tags") or [],
-            "updatedAt": model.get("updatedAt")
+            "downloads": metrics.get("downloadCount") or 0,
+            "likes": metrics.get("thumbsUpCount") or 0,
+            "buzz": metrics.get("tippedAmountCount") or 0,
+            "comments": metrics.get("commentCount") or 0,
+            "favorites": (
+                metrics.get("collectedCount")
+                if metrics.get("collectedCount") is not None
+                else metrics.get("favoriteCount") or 0
+            ),
+            "imagesCount": image_count or 0,
+            "rating": metrics.get("rating"),
+            "ratingCount": metrics.get("ratingCount") or 0,
+            "createdAt": (
+                hit.get("createdAt")
+                or hit.get("publishedAt")
+                or hit.get("lastVersionAt")
+            ),
+            "url": f"{site_root}/models/{model_id}",
+            "preview": preview,
+            "tags": [tag for tag in tags if isinstance(tag, str) and tag],
+            "updatedAt": hit.get("lastVersionAt")
         })
 
-    metadata = payload.get("metadata") or {}
+    total = payload.get("estimatedTotalHits", payload.get("totalHits"))
+    next_offset = offset + len(payload.get("hits", []))
+    next_cursor = None
+    if (
+        len(payload.get("hits", [])) >= 100
+        and next_offset < 1000
+        and (total is None or next_offset < total)
+    ):
+        next_cursor = str(next_offset)
+
     return {
         "success": True,
         "items": items,
-        "nextCursor": metadata.get("nextCursor"),
-        "totalItems": metadata.get("totalItems"),
-        "matureContentEnabled": mature_enabled
+        "nextCursor": next_cursor,
+        "totalItems": total,
+        "matureContentEnabled": mature_enabled,
+        "searchSource": "civitai_website_models_v9"
     }
 
 
