@@ -813,6 +813,12 @@ main {{
 .online-search-controls input,.online-search-controls select {{min-width:0;padding:10px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:12px}}
 .online-search-controls button,#load-more-models {{padding:10px 15px;background:#68449a;border:0;border-radius:5px;color:white;cursor:pointer;font-size:12px;font-weight:bold}}
 .online-search-controls button:disabled,#load-more-models:disabled {{opacity:.5;cursor:wait}}
+.online-search-advanced {{margin-top:10px;color:#bbb;font-size:11px}}
+.online-search-advanced summary {{cursor:pointer;color:#c9a7ff;user-select:none}}
+.online-search-advanced-fields {{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:12px;align-items:center;padding:10px 0 2px}}
+.online-search-advanced-fields input[type="text"] {{min-width:0;padding:8px;background:#17171d;border:1px solid #494956;border-radius:5px;color:white;font-size:11px}}
+.online-search-advanced-fields label {{display:flex;align-items:center;gap:6px;white-space:nowrap}}
+@media(max-width:650px) {{.online-search-advanced-fields {{grid-template-columns:1fr}}}}
 #civitai-search-status {{margin-top:10px;color:#aaa;font-size:11px;white-space:pre-wrap}}
 #civitai-search-results {{display:grid;gap:6px;margin-top:12px}}
 .civitai-result {{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px;background:#1b1b23;border:1px solid #343440;border-radius:5px}}
@@ -1212,6 +1218,14 @@ footer {{
             </select>
             <button type="submit" id="civitai-search-button">Search Civitai</button>
         </form>
+        <details class="online-search-advanced">
+            <summary>Advanced Civitai filters</summary>
+            <div class="online-search-advanced-fields">
+                <input type="text" id="civitai-base-models" placeholder="Base model(s), comma-separated (e.g. Illustrious, Pony, SDXL 1.0)" aria-label="Base model filter">
+                <label><input type="checkbox" id="civitai-include-nsfw"> Include mature content (where permitted)</label>
+                <label><input type="checkbox" id="civitai-supports-generation"> Supports Civitai generation</label>
+            </div>
+        </details>
         <div id="civitai-search-status"></div><div id="civitai-search-results"></div>
         <button type="button" id="load-more-models">Load more relevant results</button>
     </section>
@@ -1290,7 +1304,7 @@ const civitaiResultsElement=document.getElementById("civitai-search-results");
 const loadMoreModelsButton=document.getElementById("load-more-models");
 const civitaiSortSelect=document.getElementById("civitai-sort-by");
 const civitaiSortDirection=document.getElementById("civitai-sort-direction");
-let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA";
+let civitaiSearchItems=[],civitaiNextCursor=null,civitaiCurrentQuery="",civitaiCurrentType="LORA",civitaiCurrentFilters={};
 
 const metricLabels={{
     downloads:"downloads",likes:"likes",buzz:"Buzz tipped",comments:"comments",
@@ -1336,7 +1350,7 @@ function renderCivitaiResults() {{
 }}
 
 async function requestCivitaiModels(cursor=null) {{
-    const response=await fetch("/search-models",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{query:civitaiCurrentQuery,cursor,model_type:civitaiCurrentType}})}});
+    const response=await fetch("/search-models",{{method:"POST",headers:{{"Content-Type":"application/json"}},body:JSON.stringify({{query:civitaiCurrentQuery,cursor,model_type:civitaiCurrentType,filters:civitaiCurrentFilters}})}});
     const result=await response.json();
     if(!response.ok||!result.success) throw new Error(result.error||"Civitai search failed.");
     return result;
@@ -1346,6 +1360,12 @@ civitaiSearchForm.addEventListener("submit",async event=>{{
     event.preventDefault();
     const query=document.getElementById("civitai-search-query").value.trim();if(!query)return;
     civitaiCurrentQuery=query;civitaiCurrentType=document.getElementById("civitai-model-type").value;
+    const baseModelText=document.getElementById("civitai-base-models").value.trim();
+    civitaiCurrentFilters={{
+        base_models:baseModelText,
+        include_nsfw:document.getElementById("civitai-include-nsfw").checked,
+        supports_generation:document.getElementById("civitai-supports-generation").checked
+    }};
     civitaiSearchItems=[];civitaiNextCursor=null;civitaiResultsElement.replaceChildren();loadMoreModelsButton.style.display="none";
     civitaiSearchButton.disabled=true;loadMoreModelsButton.disabled=true;civitaiSearchStatus.textContent="Searching Civitai by relevance...";
     try {{
