@@ -29,6 +29,7 @@ from src.page_extractor import (
     _extract_image_gallery,
     _extract_version_selector,
 )
+from src import generate_library as library_generator
 
 
 class FakeResponse:
@@ -654,6 +655,55 @@ class FranchiseCatalogTests(unittest.TestCase):
             catalog.write_text(json.dumps(payload), encoding="utf-8")
             entries = load_catalog(catalog)
             self.assertEqual(find_franchise(entries, "wow")["name"], "World of Warcraft")
+
+
+
+
+class ManageLibraryWorkspaceTests(unittest.TestCase):
+    def test_manage_page_renders_workspace_inventory_and_catalog(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            downloads = root / "downloads"
+            character_folder = downloads / "Fixture Character"
+            versions = character_folder / "Versions" / "v1"
+            versions.mkdir(parents=True)
+            (character_folder / "index.html").write_text(
+                "<html>fixture character</html>", encoding="utf-8"
+            )
+            (character_folder / "Metadata.json").write_text(json.dumps({
+                "id": 123, "name": "Fixture Character", "creator": {"username": "artist"}
+            }), encoding="utf-8")
+            (character_folder / "ArchiveIndex.json").write_text(
+                json.dumps({"version_count": 1}), encoding="utf-8"
+            )
+            (versions / "preview.webp").write_bytes(b"fixture")
+            config = downloads / "library.json"
+            config.write_text(json.dumps({
+                "anime": [{
+                    "name": "Fixture Franchise",
+                    "characters": [{
+                        "name": "Fixture Character",
+                        "folder": "Fixture Character"
+                    }]
+                }]
+            }), encoding="utf-8")
+
+            with patch.object(library_generator, "ROOT", downloads), \\
+                 patch.object(library_generator, "CONFIG", config), \\
+                 patch.object(library_generator, "PROJECT_ROOT", root):
+                library_generator.generate()
+
+            page = (downloads / "manage.html").read_text(encoding="utf-8")
+            self.assertIn('id="view-overview"', page)
+            self.assertIn('id="view-characters"', page)
+            self.assertIn('id="view-franchises"', page)
+            self.assertIn('id="view-archives"', page)
+            self.assertIn("Fixture Character", page)
+            self.assertIn("Fixture Franchise", page)
+            self.assertIn("/downloads/Fixture%20Character/Versions/v1/preview.webp", page)
+            self.assertNotIn("__FRANCHISE_DATA__", page)
+            self.assertNotIn("__CHARACTER_COUNT__", page)
+            self.assertIn("inventoryPageSize = 48", page)
 
 
 if __name__ == "__main__":
