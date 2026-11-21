@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -131,6 +132,38 @@ def _write_trigger_words(version_folder, version):
             "\n".join(normalized) + "\n",
             encoding="utf-8"
         )
+
+
+def save_download_report(root, version_results, download_options):
+    """Persist the outcome of every version's asset download in the archive."""
+    records = []
+    for item in version_results:
+        records.append({
+            "version_id": item.get("version_id"),
+            "version_name": item.get("version_name"),
+            "files_downloaded": item.get("files_downloaded", []),
+            "images_downloaded": item.get("images_downloaded", []),
+            "files_skipped": item.get("files_skipped", 0),
+            "images_skipped": item.get("images_skipped", 0),
+            "errors": item.get("errors", [])
+        })
+
+    errors = [error for item in records for error in item["errors"]]
+    report = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "download_options": download_options,
+        "version_count": len(records),
+        "files_downloaded": sum(len(item["files_downloaded"]) for item in records),
+        "images_downloaded": sum(len(item["images_downloaded"]) for item in records),
+        "files_skipped": sum(item["files_skipped"] for item in records),
+        "images_skipped": sum(item["images_skipped"] for item in records),
+        "error_count": len(errors),
+        "status": "completed_with_errors" if errors else "completed",
+        "versions": records
+    }
+    path = Path(root) / "DownloadReport.json"
+    save_json(path, report)
+    return path
 
 
 def create_model_archive(model_data, versions, download_directory, save_descriptions=True):
