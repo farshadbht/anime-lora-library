@@ -47,8 +47,17 @@ class CivitaiAPI:
 
         return model_id, version_id
 
-    def search_models(self, query, cursor=None, limit=100, model_type="LORA"):
-        """Search Civitai by relevance; callers can re-rank the returned items."""
+    def search_models(
+        self,
+        query,
+        cursor=None,
+        limit=100,
+        model_type="LORA",
+        base_models=None,
+        include_nsfw=False,
+        supports_generation=False
+    ):
+        """Search Civitai's model index; callers may re-rank returned matches."""
         query = str(query or "").strip()
         if not query:
             raise ValueError("Enter a search term.")
@@ -56,9 +65,8 @@ class CivitaiAPI:
             raise ValueError("Search terms must be 200 characters or fewer.")
 
         # Keep Civitai's native text-search ranking: when "query" is present,
-        # omitting "sort" lets Civitai's search engine rank by relevance.
-        # Do not add a default popularity/rating sort here; secondary ranking
-        # is intentionally applied locally to this exact result set.
+        # omitting "sort" lets its search engine rank by relevance. Never add
+        # a default popularity/rating sort; secondary ranking stays local.
         params = {
             "query": query,
             "limit": max(1, min(int(limit), 100)),
@@ -69,6 +77,27 @@ class CivitaiAPI:
             if model_type not in ("LORA", "Checkpoint", "TextualInversion", "Controlnet"):
                 raise ValueError("Unsupported model type.")
             params["types"] = model_type
+
+        if isinstance(base_models, str):
+            base_models = [part.strip() for part in base_models.split(",")]
+        if base_models:
+            cleaned_base_models = [
+                str(value).strip() for value in base_models
+                if str(value).strip()
+            ]
+            if len(cleaned_base_models) > 20:
+                raise ValueError("Choose no more than 20 base models.")
+            if any(len(value) > 80 for value in cleaned_base_models):
+                raise ValueError("Base model names must be 80 characters or fewer.")
+            if cleaned_base_models:
+                # Repeated query parameters are supported by the public API
+                # for its string-array baseModels filter.
+                params["baseModels"] = cleaned_base_models
+
+        if include_nsfw:
+            params["nsfw"] = "true"
+        if supports_generation:
+            params["supportsGeneration"] = "true"
 
         response = self.session.get(
             f"{self.BASE_URL}/models", params=params, timeout=60
