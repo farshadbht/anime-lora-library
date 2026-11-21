@@ -224,13 +224,28 @@ def search_civitai_models(query, cursor=None, model_type="LORA"):
         creator = model.get("creator") or {}
         stats = model.get("stats") or {}
 
+        image_count = sum(
+            len(version.get("images") or [])
+            for version in versions
+        )
+        created_at = model.get("createdAt") or (
+            latest.get("createdAt") if latest else None
+        )
+
         items.append({
             "id": model.get("id"),
             "name": model.get("name") or "Unknown model",
             "type": model.get("type") or "Unknown",
             "creator": creator.get("username") or "Unknown",
             "downloads": int(stats.get("downloadCount") or 0),
+            "likes": int(stats.get("thumbsUpCount") or 0),
+            "buzz": int(stats.get("tippedAmountCount") or 0),
+            "comments": int(stats.get("commentCount") or 0),
+            "favorites": int(stats.get("favoriteCount") or 0),
+            "imagesCount": image_count,
             "rating": stats.get("rating"),
+            "ratingCount": int(stats.get("ratingCount") or 0),
+            "createdAt": created_at,
             "url": f"https://civitai.com/models/{model.get('id')}",
             "preview": images[0].get("url") if images else None,
             "tags": model.get("tags") or [],
