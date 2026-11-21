@@ -35,7 +35,19 @@ def save_description(folder, html):
     for element in soup(["script", "style"]):
         element.decompose()
 
-    text = soup.get_text(separator="\n", strip=True)
+    block_tags = {"p", "li", "h1", "h2", "h3", "h4", "blockquote"}
+    blocks = []
+    for element in soup.find_all(list(block_tags)):
+        if any(
+            getattr(parent, "name", None) in block_tags
+            for parent in element.parents
+        ):
+            continue
+        value = element.get_text(" ", strip=True)
+        if value and value not in blocks:
+            blocks.append(value)
+
+    text = "\n\n".join(blocks) if blocks else soup.get_text(separator="\n", strip=True)
     (folder / "Description.txt").write_text(text, encoding="utf-8")
 
 
@@ -263,8 +275,10 @@ def create_model_archive(model_data, versions, download_directory, save_descript
         # Save page-only details for the version selected in the submitted URL.
         selected_page_version = None
         if isinstance(page_metadata, dict):
-            selected_page_version = (page_metadata.get("version_selector") or {}).get(
-                "selected_version_id_from_url"
+            selector_metadata = page_metadata.get("version_selector") or {}
+            selected_page_version = (
+                selector_metadata.get("displayed_version_id")
+                or selector_metadata.get("selected_version_id_from_url")
             )
         page_images = []
         page_generation_panels = []
