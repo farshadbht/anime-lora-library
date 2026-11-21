@@ -264,8 +264,7 @@ class CivitaiSearchServerTests(unittest.TestCase):
                 "metadata": {"nextCursor": "opaque-next-cursor"}
             }
 
-            with patch.object(library_server_module, "SETTINGS_PATH", settings_path), \\
-                 patch.object(library_server_module, "CivitaiAPI") as api_factory:
+            with patch.object(library_server_module, "SETTINGS_PATH", settings_path), patch.object(library_server_module, "CivitaiAPI") as api_factory:
                 api = api_factory.return_value
                 api.search_models.return_value = payload
 
