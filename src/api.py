@@ -55,6 +55,10 @@ class CivitaiAPI:
         if len(query) > 200:
             raise ValueError("Search terms must be 200 characters or fewer.")
 
+        # Keep Civitai's native text-search ranking: when "query" is present,
+        # omitting "sort" lets Civitai's search engine rank by relevance.
+        # Do not add a default popularity/rating sort here; secondary ranking
+        # is intentionally applied locally to this exact result set.
         params = {
             "query": query,
             "limit": max(1, min(int(limit), 100)),
