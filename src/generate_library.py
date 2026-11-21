@@ -826,6 +826,9 @@ main {{
 .civitai-result-name {{color:#c9a7ff;font-weight:bold;font-size:12px;text-decoration:none}}
 .civitai-result-name:hover {{text-decoration:underline}}
 .civitai-result-meta {{color:#999;font-size:10px;margin-top:5px}}
+.civitai-result-extra {{color:#aaa;font-size:10px;margin-top:4px;line-height:1.5;overflow-wrap:anywhere}}
+.civitai-result-tags {{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}}
+.civitai-result-tag {{padding:2px 5px;background:#292934;border:1px solid #3a3a48;border-radius:3px;color:#bdb3cf;font-size:9px}}
 .civitai-result-downloads {{color:#ddd;font-size:11px;white-space:nowrap;text-align:right}}
 #load-more-models {{display:none;margin-top:10px}}
 @media(max-width:850px) {{.online-search-controls {{grid-template-columns:1fr 1fr}}}}
@@ -1330,7 +1333,21 @@ function renderCivitaiResults() {{
         const details=document.createElement("div"),link=document.createElement("a");
         link.className="civitai-result-name";link.href=model.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=model.name;
         details.appendChild(link);
-        const meta=document.createElement("div");meta.className="civitai-result-meta";meta.textContent=model.type+" · by "+model.creator;details.appendChild(meta);
+        const meta=document.createElement("div");meta.className="civitai-result-meta";
+        if(model.creatorUrl) {{
+            const creatorLink=document.createElement("a");creatorLink.href=model.creatorUrl;creatorLink.target="_blank";creatorLink.rel="noopener noreferrer";creatorLink.textContent=model.creator;creatorLink.style.color="inherit";creatorLink.style.textDecoration="none";
+            meta.append(document.createTextNode(model.type+" · by "),creatorLink);
+        }} else {{
+            meta.textContent=model.type+" · by "+model.creator;
+        }}
+        details.appendChild(meta);
+        const baseModel=document.createElement("div");baseModel.className="civitai-result-extra";baseModel.textContent="Base model: "+(model.baseModel||"Unknown");details.appendChild(baseModel);
+        const tags=Array.isArray(model.tags)?model.tags.filter(tag=>typeof tag==="string"&&tag.trim()).slice(0,5):[];
+        if(tags.length) {{
+            const tagRow=document.createElement("div");tagRow.className="civitai-result-tags";
+            tags.forEach(tag=>{{const chip=document.createElement("span");chip.className="civitai-result-tag";chip.textContent=tag;tagRow.appendChild(chip)}});
+            details.appendChild(tagRow);
+        }}
         const metric=document.createElement("div");metric.className="civitai-result-downloads";
         if(sortBy==="newest"||sortBy==="oldest") {{
             metric.textContent=model.createdAt?new Date(model.createdAt).toLocaleDateString():"Date unavailable";
