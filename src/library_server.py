@@ -417,8 +417,58 @@ class LibraryHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
 
+    def end_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.send_header(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=()"
+        )
+        super().end_headers()
+
+    def _is_allowed_static_path(self):
+        """Allow static requests only inside the downloads directory."""
+        request_path = urlparse(self.path).path
+
+        if not (
+            request_path == "/downloads"
+            or request_path.startswith("/downloads/")
+        ):
+            return False
+
+        try:
+            requested_file = Path(
+                super().translate_path(self.path)
+            ).resolve()
+            requested_file.relative_to(DOWNLOADS.resolve())
+            return True
+        except (OSError, ValueError):
+            return False
+
+    def do_GET(self):
+        if not self._is_allowed_static_path():
+            self.send_error(404, "File not found.")
+            return
+        super().do_GET()
+
+    def do_HEAD(self):
+        if not self._is_allowed_static_path():
+            self.send_error(404, "File not found.")
+            return
+        super().do_HEAD()
+
     def do_POST(self):
         route = urlparse(self.path).path
+
+        # Reject requests originating from other websites.
+        origin = self.headers.get("Origin")
+        if origin != "http://127.0.0.1:8765":
+            self.send_json(403, {
+                "success": False,
+                "error": "Forbidden: invalid request origin."
+            })
+            return
 
         if route not in (
             "/add-character",
